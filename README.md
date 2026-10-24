@@ -1,6 +1,6 @@
 # ClipGum
 
-**Phase 2 — Smart Paste & Local Inference for macOS 14+ on Apple Silicon.**
+**Phase 3 — Smart Paste, developer workflows, and local inference for macOS 14+ on Apple Silicon.**
 
 Copy normally, press **⌘⇧V**, inspect deterministic or locally generated output, then choose exactly what happens next. ClipGum still does not watch clipboard changes, keep history, perform cloud inference, or rewrite the pasteboard on its own.
 
@@ -29,7 +29,7 @@ Pressing ⌘⇧V while the palette is open dismisses it without another clipboar
 
 ### Deliberate non-goals
 
-There is no clipboard history, polling loop, launch-time clipboard read, rich-text preservation, multi-item merging, automatic pasteboard restoration, telemetry, cloud inference, automatic model download, or autonomous agent/tool execution. “Paste Original” means the original **plain-text representation**, not every original RTF/HTML representation.
+There is no clipboard history, polling loop, launch-time clipboard read, rich-text preservation, automatic/background multi-item merging, automatic pasteboard restoration, telemetry, cloud inference, automatic model download, or autonomous agent/tool execution. Chain Copy is a separate opt-in, volatile session described below. “Paste Original” means the original **plain-text representation**, not every original RTF/HTML representation.
 
 ## Two-stage execution pipeline
 
@@ -40,7 +40,11 @@ There is no clipboard history, polling loop, launch-time clipboard read, rich-te
 | Clean + Redact | URL de-tracking → regex secret reduction | Never |
 | URL Clean | Raw-byte tracker removal only | Never |
 | Regex Secret Scrub | Secret rules only | Never |
-| JSON Format | `JSONSerialization` validation, sorted keys, pretty printing | Never |
+| Share-Ready / Restore Original Identifiers | Volatile bidirectional synthetic-identifier session | Never |
+| JSON Pretty / Minify | Native bounded parser → AST → renderer | Never |
+| JSON → TypeScript | Native JSON AST → deterministic type inference/emission | Never |
+| Log / Stack Trace Scrub | ANSI/frame/timestamp cleanup → exact secret/IP redaction | Never |
+| Bash Inspect | Pure lexer and deterministic risk rules; no execution API | Never |
 
 `SmartPastePipeline.mechanicalResult` is synchronous. Its tests use a mock engine and verify that none of these paths calls `transform`.
 
@@ -49,10 +53,84 @@ There is no clipboard history, polling loop, launch-time clipboard read, rich-te
 - **CORRECTION ONLY** — spelling/grammar/punctuation while instructing the model to retain facts, numbers, tone, style, code, and redaction markers.
 - **REWRITE** — professional, concise wording with no injected data, facts, numbers, examples, citations, URLs, or code.
 - **TABLE TO CSV** — TSV/Markdown-table conversion with stable row/column ordering and RFC 4180-style quoting.
+- **BASH PARAMETER EXPLANATION** — concise token/flag/redirection/pipeline explanation from an inert command string. The independent deterministic inspector owns every danger finding; model output cannot downgrade it and is never executed.
 
 System instructions and untrusted input remain separate arguments through `InferenceEngine`. Clipboard text is not interpolated into the instruction template. Before any LLM call, the full deterministic URL/secret pipeline runs; the engine receives only that cleaned text, not the raw clipboard value.
 
 Streaming chunks are provisional UI state. A final `TransformationResult` is emitted only after output-budget enforcement, transport-wrapper removal, and post-validation.
+
+## Phase 3 developer workflows
+
+The HUD exposes Share-Ready actions for general text and adds JSON, shell, or log/stack-trace actions only when the deterministic content classifier matches that input. These schemas describe the captured plain text, not an implicit clipboard watcher:
+
+| Action | Input and options | Preview output | Failure behavior |
+| --- | --- | --- | --- |
+| Share-Ready | Any captured text | Consistent fictional identifiers; replacement count | Existing text remains recoverable through Paste Original |
+| Restore Original Identifiers | A returned assistant snippet captured in the same app session | Synthetic values replaced by their real mappings | Unknown/cleared mappings remain unchanged |
+| JSON Pretty | One JSON value; 2-space, 4-space, or tab indentation | Object-order- and number-lexeme-preserving JSON | Exact 1-based line/column error; deterministic preview restored |
+| JSON Minify | One JSON value | Compact JSON with no insignificant whitespace | Same native parser error path |
+| JSON → TypeScript | One JSON value; legal root name; export on/off | Deterministic `interface`/`type` declarations | Malformed JSON and invalid/reserved root names are rejected |
+| Log / Stack Trace Scrub | Terminal logs, stack traces, ANSI-colored text | Cleaned log with stack noise/timestamps removed and sensitive values redacted | Text-only transform; no parser/inference fallback |
+| Bash Inspect | Shell-shaped text | Risk findings plus token/parameter report | Unmatched quotes produce a visible warning; covered raw risks still run |
+| Bash Explain | Shell-shaped text plus an explicitly loaded local model | Bounded plain-text parameter explanation | Deterministic baseline restored on stream/model/validation failure |
+
+### Native JSON and TypeScript boundaries
+
+`Services/Dev/JSON` contains a native recursive-descent parser, AST, renderer, and TypeScript inferencer. It does not use JavaScript, an LLM, or floating-point number conversion. Strings support escaped control characters and UTF-16 surrogate pairs; malformed escapes, unpaired surrogates, leading zeros, trailing commas, and trailing content are rejected.
+
+- Maximum JSON input: **2 MiB UTF-8**.
+- Maximum container nesting: **256 levels**.
+- Errors report a 1-based line and Unicode-scalar column.
+- Pretty rendering preserves object member order and validated number lexemes, including large integers and exponent spelling.
+- TypeScript array inference merges object shapes, marks missing properties optional, preserves deterministic union order, and emits `unknown[]` for empty arrays.
+- Property names are quoted when necessary. Root names must be non-reserved identifiers beginning with a letter, `_`, or `$`.
+
+TypeScript output is a structural approximation, not a runtime schema validator. For example, mixed values can produce unions and a property present only as `null` remains `null` rather than being assumed to have another type.
+
+### Share-Ready volatile-session security model
+
+`ShareReadySession` keeps two lock-protected dictionaries in process memory: real+category → fictional and fictional → real. It never writes its mapping tables to preferences, files, bookmarks, logs, or model storage. A pasteboard write of preview text still requires the normal explicit Copy/Paste choice.
+
+Detected categories include:
+
+- RFC1918 IPv4 addresses, `localhost`, and `::1`.
+- Internal endpoints such as `api.corp`, `service.internal`, `host.local`, and `db.corp.net`.
+- macOS `/Users/<name>` path prefixes.
+- Environment/JSON-style credential assignments, bearer values, AWS access-key shapes, URL basic-auth userinfo, and private-key blocks.
+
+Replacements are stable within the session and avoid collisions with source text and existing synthetic values. Examples include `db.example.test`, `host-1.example.test`, `/Users/[USER]/…`, `[ENV_VALUE_1]`, and `[CREDENTIAL_1]`. Repeated occurrences of the same real value in one category receive the same synthetic value.
+
+To restore a returned assistant snippet, copy that snippet, invoke ⌘⇧V, and explicitly run **Restore Original Identifiers**. Only identifiers already present in the live mapping are restored. **Clear Share-Ready** immediately drops both directions and resets ordinal assignment; app quit does the same. Clearing does not rewrite text already shown or exported. Dismissing the HUD alone does not clear the session.
+
+This is deterministic pseudonymization, **not encryption, DLP, or a guarantee that every secret/internal identifier was found**. Review the preview before sharing. Once mappings are cleared or the app exits, restoration is intentionally impossible.
+
+### Bash inspection has zero execution capability
+
+`Services/Dev/Bash` performs shell-inspired lexing and deterministic checks only. It does not call `Process`, `system`, `popen`, a shell, AppleScript, or a command runner; command substitution is treated as text. No parsed command or pipeline segment is executed or piped into a shell.
+
+Covered high-visibility findings include:
+
+- `rm` with recursive and force flags, including separated/combined short flags and long forms.
+- `dd`, `mkfs`/`mkfs.*`, and `mke2fs`.
+- The canonical `:(){ :|:& };:` fork-bomb shape, ignoring whitespace.
+- `curl`/`wget` piped to `bash`, `sh`, `zsh`, or `ksh`, including an elevated shell.
+- `sudo`, `doas`, and `pkexec` elevation requests.
+
+The red **DANGER** badge and finding list are computed independently of the local LLM and remain attached to the original inspection. Bash Explain is advisory and cannot suppress them. The lexer intentionally is not a complete Bash grammar; obfuscation, aliases, expansions, and novel destructive commands can evade rules. **No finding is not a safety proof—review commands independently and run them only outside ClipGum.**
+
+### Chain Copy: explicit, opt-in accumulation
+
+1. Invoke ClipGum on a captured clip and choose **Chain Copy**. This starts a volatile session with the captured original text; it does not write the pasteboard.
+2. Copy the next selection and invoke ⌘⇧V again. Each addition requires this explicit invocation and the same sensitive-marker/access checks. Exact duplicate text is ignored.
+3. Toggle clip inclusion, move clips up/down, and select newline, comma (`,`, no added space), or Markdown-bullet (`- `) joining.
+4. Review the live combined preview. Selection and reordering never write the pasteboard.
+5. Choose **Copy Combined & Clear** for the single explicit write, **Clear Chain** to discard, or **Close & Continue** to keep accumulating. App quit also clears the chain.
+
+Chain Copy is not a history browser: it contains only clips explicitly added after opt-in, and there is no persistent chain storage.
+
+### Log cleanup
+
+`LogScrubber` removes ANSI CSI/OSC escapes, covered Java/JavaScript/Python/native stack-frame lines, and leading ISO, bracketed, bare-time, or syslog timestamps. Existing secret rules retain the exact `[SECRET_REDACTED]` replacement. The log pass additionally covers IPv4 loopback/unspecified/link-local addresses, IPv6 loopback, link-local, and unique-local address shapes. Public IPs and non-frame message lines remain in the preview.
 
 ## Build and runtime prerequisites
 
@@ -160,7 +238,7 @@ The floating palette retains one observable session while tokens arrive. It prov
 - Live local-stream/chunk status and provisional-output labeling.
 - Side-by-side Before/After and inline diff modes.
 - Exact token/whitespace-preserving differences: red strikethrough for removals and green underline for additions.
-- The same four explicit safety actions as Phase 1.
+- Copy/Paste/Paste Original/Cancel, content-sensitive developer controls, a deterministic shell-danger badge, and opt-in Chain Copy.
 
 The single menu-bar status item reports Idle, Loading, Ready/Model Loaded with resident RAM, Generating, Unloading, and safe failure states. Model content and clipboard text never appear in that status.
 
@@ -199,12 +277,12 @@ Accessibility is requested **only for Paste Cleaned / Paste Original**, because 
 
 - The only production general-pasteboard read is `handleExplicitUserTrigger()` in `AppDelegate`.
 - Preview, Cancel, Escape, outside-click dismissal, and excluded content perform no writes.
-- Writes exist only in `writeTextForExplicitUserAction`, called by Copy Result or an approved paste action.
+- Writes exist only in `writeTextForExplicitUserAction`, called by Copy Result, Copy Combined & Clear, or an approved paste action.
 - Mechanical actions do not load or call a model.
 - Models load only after explicit file selection or an explicit LLM Run.
 - No inference network entitlement or app network client is present; MLX uses `.directory`, not a repository downloader.
 - The sandbox adds only user-selected read-only file access for local models. There is no persistent bookmark entitlement.
-- Preferences contain only temperature/token/idle settings. Clipboard data, prompts, output, and model paths are not persisted.
+- Preferences contain only temperature/token/idle settings. Clipboard data, prompts, output, model paths, Share-Ready mappings, and Chain Copy items are not persisted. Share-Ready mappings and chain items are cleared on quit.
 - Clipboard contents are not logged. ClipGum also installs a no-op llama.cpp logger to avoid third-party stderr prompt/output leakage.
 - Dismissal cancels the consumer task and releases the palette's original/generated text and hosting content.
 
@@ -255,6 +333,7 @@ Sources/ClipGum/
 │   └── MenuBarController.swift       # One NSStatusItem and model/RAM status
 ├── Core/
 │   ├── Clipboard/                    # Sole read/write gateway and sensitive markers
+│   ├── ChainCopy/                    # Opt-in volatile accumulation, selection, ordering, joining
 │   ├── Hotkeys/GlobalHotKey.swift    # Carbon ⌘⇧V registration and teardown
 │   ├── Paste/PasteService.swift      # Explicit copy, Accessibility check, ⌘V posting
 │   └── Inference/
@@ -267,6 +346,12 @@ Sources/ClipGum/
 │       └── SecurityScopedModelAccess.swift
 ├── Services/
 │   ├── Deterministic/                # Phase 1 immutable rules
+│   ├── Dev/
+│   │   ├── JSON/                     # Native AST/parser/renderer and TypeScript inference
+│   │   ├── ShareReady/               # Volatile bidirectional fictional ↔ real mappings
+│   │   ├── Bash/                     # Non-executing lexer, risk rules, and token report
+│   │   ├── Logs/                     # ANSI/frame/timestamp/IP cleanup
+│   │   └── DeveloperContentClassifier.swift
 │   └── Pipeline/
 │       ├── SmartPastePipeline.swift  # Mechanical bypass → stream → validation
 │       ├── SmartPasteAction.swift
@@ -278,10 +363,10 @@ Sources/ClipGum/
 │       └── JSONFormattingService.swift
 └── UI/
     ├── Diff/InlineDiff.swift         # Exact token/whitespace inline differences
-    ├── Palette/                      # Floating streaming preview and four actions
+    ├── Palette/                      # Streaming preview, developer controls, danger badge, Chain Copy
     └── Settings/                     # Resource-only preferences and settings UI
 
-Tests/ClipGumTests/                   # 129 XCTest cases; no model weights required
+Tests/ClipGumTests/                   # 164 XCTest cases; no model weights required
 Resources/                            # Info.plist and minimal sandbox entitlements
 Scripts/package_app.sh                # Repeatable local .app packaging
 ```
@@ -290,7 +375,7 @@ Delayed work consists of the one-shot paste focus handoff and one-shot idle offl
 
 ## Tests and manual verification
 
-The **129 XCTest cases** cover:
+The **164 XCTest cases** cover:
 
 - All Phase 1 URL, secret, pasteboard-marker, access-policy, and explicit-paste behavior.
 - Prompt contents/non-interpolation, configuration clamps, local identifiers, and safe OOM classification.
@@ -298,6 +383,10 @@ The **129 XCTest cases** cover:
 - Numeric/code preservation, secret regeneration, redaction markers, semantic warnings/failures, CSV syntax/schema/cell equality, and output unwrapping.
 - Exact diff reconstruction with insertions, removals, replacements, whitespace, punctuation, CRLF, and Unicode.
 - Backend selection, idempotent loads, busy-state protection, configuration updates, idle offload, and OOM cleanup/status.
+- Nested/malformed/bounded JSON, exact error locations, Unicode escapes, TypeScript unions/optional fields/names/options, and deterministic output.
+- Share-Ready consistency, fictional ↔ real round trips, synthetic collisions, public-IP preservation, credential blocks, and clearing.
+- All covered destructive Bash fixtures, benign lookalikes, quote/pipeline lexing, parse-warning fallback, content-sensitive action schemas, and engine bypass.
+- Chain Copy opt-in, exact duplicates, selection, reorder boundaries, every delimiter, clearing, ANSI/frame/timestamp cleanup, and local/private IP redaction.
 
 Before a release, manually verify on each supported macOS line and Apple Silicon target:
 
@@ -307,7 +396,7 @@ Before a release, manually verify on each supported macOS line and Apple Silicon
 4. `.ask`, `.alwaysAllow`, and `.alwaysDeny` pasteboard settings behave as documented.
 5. Denied Accessibility leaves the pasteboard untouched; Copy Result still works.
 6. Paste targets the app that was frontmost when ClipGum was invoked.
-7. VoiceOver can reach Before/After text, validation messages, action picker, diff controls, and all four actions.
+7. VoiceOver can reach Before/After text, validation messages, action picker, developer options, danger findings, Chain Copy controls, and every export/cancel action.
 8. Complete the model evaluation checklist above for each shipping model/quantization.
 
 ## Open-source implementation references and credits
@@ -322,6 +411,9 @@ References are pinned to inspected revisions. ClipGum's coordinator, validation,
 | GGUF Swift package binding | [llama.swift `Package.swift`](https://github.com/mattt/llama.swift/blob/018619bf56f92cc85286150611609f456813826f/Package.swift), [llama.swift `Llama.swift`](https://github.com/mattt/llama.swift/blob/018619bf56f92cc85286150611609f456813826f/Sources/LlamaSwift/Llama.swift) | Prebuilt upstream XCFramework discovery and direct C API re-export. No remote inference client or high-level black-box wrapper is used. |
 | SwiftLlama wrapper comparison | [SwiftLlama `Swiftllama.swift`](https://github.com/ShenghaiWang/SwiftLlama/blob/792181492beff9edba52314a040032cefb19edd6/Sources/SwiftLlama/Swiftllama.swift), [SwiftLlama `LlamaModel.swift`](https://github.com/ShenghaiWang/SwiftLlama/blob/792181492beff9edba52314a040032cefb19edd6/Sources/SwiftLlama/LlamaModel.swift) | Actor/stream boundary, low default temperature, fixed-seed sampling, and per-response cache clearing. ClipGum implements its own macOS 14 wrapper and does not adopt Combine/session history. |
 | Prompt commands and schema dispatch | [Raycast Ollama professional command](https://github.com/raycast/extensions/blob/0b61ca53883ae7f8d571c4193c35270b982d0340/extensions/raycast-ollama/src/ollama-professional.tsx), [Raycast model streaming adapter](https://github.com/raycast/extensions/blob/0b61ca53883ae7f8d571c4193c35270b982d0340/extensions/raycast-ollama/src/models.ts), [Boop `ScriptManager.swift`](https://github.com/IvanMathy/Boop/blob/5cf6914381f6ed6ef004c3a7d470f241a248fcb6/Boop/Boop/System/ScriptManager.swift#L142-L171) | Stateless command-specific instructions, low-creativity editing, explicit stream mapping, and schema-oriented result handling. ClipGum uses native pure validators rather than Raycast's cloud/API runtime or Boop's JavaScript runtime. |
+| Stateless developer transformations | [Boop `FormatJSON.js`](https://github.com/IvanMathy/Boop/blob/5cf6914381f6ed6ef004c3a7d470f241a248fcb6/Boop/Boop/scripts/FormatJSON.js), [Boop `MinifyJSON.js`](https://github.com/IvanMathy/Boop/blob/5cf6914381f6ed6ef004c3a7d470f241a248fcb6/Boop/Boop/scripts/MinifyJSON.js) | Benchmarked supplied-text-only parse → serialize transforms with no persistent document state. ClipGum uses its own bounded native Swift AST/parser instead of Boop's JavaScript runtime. |
+| JSON type inference and TypeScript emission | [quicktype `Inference.ts`](https://github.com/glideapps/quicktype/blob/c39af7d303b025280e2668a1b2d29913093593c9/packages/quicktype-core/src/input/Inference.ts), [quicktype `TypeScriptRenderer.ts`](https://github.com/glideapps/quicktype/blob/c39af7d303b025280e2668a1b2d29913093593c9/packages/quicktype-core/src/language/TypeScriptFlow/TypeScriptRenderer.ts) | Studied object-shape unification, optional properties, unions, and separation of inferred types from legal emitted names. ClipGum implements a smaller deterministic Swift inferencer and does not embed quicktype. |
+| Shell token/operator explanation | [explainshell `matcher.py`](https://github.com/idank/explainshell/blob/827ebe38da9822a10e89946551e377330a9de35e/explainshell/matcher.py), [explainshell `models.py`](https://github.com/idank/explainshell/blob/827ebe38da9822a10e89946551e377330a9de35e/explainshell/models.py) | Studied token/source-span grouping, operators/redirections, option matching, and explicit unknown-span behavior as an architecture reference. No bashlex, man-page database, subprocess, or GPL source is incorporated; ClipGum's lexer and deterministic safety layer are original Swift. |
 | Status item and marker filtering | [Maccy `AppDelegate.swift`](https://github.com/p0deje/Maccy/blob/54fb9f00b828a4ec367e706c0e276df90febe76a/Maccy/AppDelegate.swift#L11-L22), [Maccy `Clipboard.swift`](https://github.com/p0deje/Maccy/blob/54fb9f00b828a4ec367e706c0e276df90febe76a/Maccy/Clipboard.swift#L20-L31) | Strong `NSStatusItem` ownership and checking ignored types before content. Maccy's history timer was **not** adopted. No `accessBehavior` implementation was found at this revision; that gate comes from Apple. |
 | Status-item/panel lifecycle comparison | [Ice `ControlItem.swift`](https://github.com/jordanbaird/Ice/blob/11edd39115f3f43a83ae114b5348df6a0e1741cf/Ice/MenuBar/ControlItem/ControlItem.swift#L43-L135), [Ice `IceBar.swift`](https://github.com/jordanbaird/Ice/blob/11edd39115f3f43a83ae114b5348df6a0e1741cf/Ice/UI/IceBar/IceBar.swift#L11-L42) | Compared explicit AppKit ownership and floating-panel configuration. Ice's larger machinery and GPL source were not copied. |
 | Global hotkey | [AltTab `KeyboardEvents.swift`](https://github.com/lwouis/alt-tab-macos/blob/c500294bdb01186011a5c64a412b04cef9931bef/src/events/KeyboardEvents.swift#L173-L200), [KeyboardShortcuts `HotKey.swift`](https://github.com/sindresorhus/KeyboardShortcuts/blob/772133d9dbe800fdac0473226822994c5c162c58/Sources/KeyboardShortcuts/HotKey.swift#L269-L283) | `RegisterEventHotKey`, event IDs, handler installation, and symmetric unregistration. No global keyboard monitor or CGEvent tap is used for shortcut detection. |
@@ -333,4 +425,4 @@ References are pinned to inspected revisions. ClipGum's coordinator, validation,
 
 **Source-availability note:** Shottr and Sindre Sorhus's Pure Paste remain product benchmarks, but no verifiable public implementation repository for them was used. Raycast extension APIs are not treated as native `NSPanel` source. DevUtils' inspected old snapshot supplied no reusable inference, URL-cleaning, or secret-scrubbing implementation. Concrete low-level choices above come from linked public code and Apple documentation.
 
-MLX Swift, MLX Swift LM/Examples, llama.cpp, llama.swift, SwiftLlama, Raycast Extensions, Maccy, Clipy, Boop, KeyboardShortcuts, Gitleaks, and Clipboard Cleaner are MIT-licensed at the inspected revisions. Ice and AltTab were architecture references only. Each upstream project retains its own license and copyright.
+MLX Swift, MLX Swift LM/Examples, llama.cpp, llama.swift, SwiftLlama, Raycast Extensions, Maccy, Clipy, Boop, KeyboardShortcuts, Gitleaks, and Clipboard Cleaner are MIT-licensed at the inspected revisions. quicktype is Apache-2.0. Ice, AltTab, and GPL-3.0 explainshell were architecture references only; no explainshell source is incorporated. Each upstream project retains its own license and copyright.

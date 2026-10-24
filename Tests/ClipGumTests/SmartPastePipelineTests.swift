@@ -41,7 +41,7 @@ final class SmartPastePipelineTests: XCTestCase {
             action: .formatJSON,
             input: #"{"b":2,"a":1}"#
         )
-        XCTAssertEqual(result?.cleaned, "{\n  \"a\" : 1,\n  \"b\" : 2\n}")
+        XCTAssertEqual(result?.cleaned, "{\n  \"b\": 2,\n  \"a\": 1\n}")
         let calls = await engine.transformCalls
         XCTAssertTrue(calls.isEmpty)
     }
@@ -53,7 +53,9 @@ final class SmartPastePipelineTests: XCTestCase {
             action: .formatJSON,
             input: "{not json}"
         )) { error in
-            XCTAssertEqual(error as? JSONFormattingError, .invalidDocument)
+            XCTAssertTrue(error is JSONSyntaxError)
+            XCTAssertEqual((error as? JSONSyntaxError)?.line, 1)
+            XCTAssertEqual((error as? JSONSyntaxError)?.column, 2)
         }
         let calls = await engine.transformCalls
         XCTAssertTrue(calls.isEmpty)

@@ -27,7 +27,11 @@ enum SmartPastePipelineError: LocalizedError, Equatable {
 struct SmartPastePipeline {
     private let engine: any InferenceEngine
     private let cleaner: RuleCleaningService
-    private let jsonFormatter: JSONFormattingService
+    private let jsonTooling: JSONToolingService
+    private let typeScriptGenerator: TypeScriptGenerator
+    private let logScrubber: LogScrubber
+    private let bashInspector: BashInspector
+    private let shareReadySession: ShareReadySession
     private let sanitizer: OutputSanitizer
     private let validator: OutputValidator
     private let configuration: InferenceConfiguration
@@ -35,14 +39,22 @@ struct SmartPastePipeline {
     init(
         engine: any InferenceEngine,
         cleaner: RuleCleaningService = RuleCleaningService(),
-        jsonFormatter: JSONFormattingService = JSONFormattingService(),
+        jsonTooling: JSONToolingService = JSONToolingService(),
+        typeScriptGenerator: TypeScriptGenerator = TypeScriptGenerator(),
+        logScrubber: LogScrubber = LogScrubber(),
+        bashInspector: BashInspector = BashInspector(),
+        shareReadySession: ShareReadySession = ShareReadySession(),
         sanitizer: OutputSanitizer = OutputSanitizer(),
         validator: OutputValidator = OutputValidator(),
         configuration: InferenceConfiguration = InferenceConfiguration()
     ) {
         self.engine = engine
         self.cleaner = cleaner
-        self.jsonFormatter = jsonFormatter
+        self.jsonTooling = jsonTooling
+        self.typeScriptGenerator = typeScriptGenerator
+        self.logScrubber = logScrubber
+        self.bashInspector = bashInspector
+        self.shareReadySession = shareReadySession
         self.sanitizer = sanitizer
         self.validator = validator
         self.configuration = configuration
@@ -51,8 +63,11 @@ struct SmartPastePipeline {
     /// Returns nil only for an LLM action. There is no engine call on this path.
     func mechanicalResult(
         action: SmartPasteAction,
-        input: String
+        input: String,
+        options: DeveloperActionOptions = DeveloperActionOptions()
     ) throws -> CleaningResult? {
+        let output: String
+        let redactionCount: Int
         switch action {
         case .clean:
             return cleaner.clean(input)
@@ -60,16 +75,45 @@ struct SmartPastePipeline {
             return cleaner.cleanURLs(input)
         case .secretScrub:
             return cleaner.scrubSecrets(input)
+        case .shareReady:
+            let result = shareReadySession.anonymize(input)
+            output = result.output
+            redactionCount = result.replacementCount
+        case .restoreIdentifiers:
+            let result = shareReadySession.restore(input)
+            output = result.output
+            redactionCount = 0
         case .formatJSON:
-            return CleaningResult(
-                original: input,
-                cleaned: try jsonFormatter.format(input),
-                removedTrackingParameters: 0,
-                redactedSecrets: 0
+            output = try jsonTooling.format(input, indentation: options.jsonIndentation)
+            redactionCount = 0
+        case .minifyJSON:
+            output = try jsonTooling.minify(input)
+            redactionCount = 0
+        case .jsonToTypeScript:
+            output = try typeScriptGenerator.generate(
+                input: input,
+                options: TypeScriptGenerationOptions(
+                    rootName: options.typeScriptRootName,
+                    includesExport: options.typeScriptIncludesExport
+                )
             )
-        case .correction, .rewrite, .tableToCSV:
+            redactionCount = 0
+        case .scrubLogs:
+            let result = logScrubber.scrub(input)
+            output = result.output
+            redactionCount = result.redactedSecrets
+        case .inspectBash:
+            output = bashInspector.report(bashInspector.inspect(input))
+            redactionCount = 0
+        case .explainBash, .correction, .rewrite, .tableToCSV:
             return nil
         }
+        return CleaningResult(
+            original: input,
+            cleaned: output,
+            removedTrackingParameters: 0,
+            redactedSecrets: redactionCount
+        )
     }
 
     func inferenceStream(

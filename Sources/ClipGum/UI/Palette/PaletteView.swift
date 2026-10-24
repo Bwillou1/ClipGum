@@ -16,6 +16,8 @@ struct PaletteView: View {
             switch model.content {
             case .preview(let preview):
                 previewView(preview)
+            case .chain(let session):
+                chainView(session)
             case .message(let message):
                 messageView(message)
             }
@@ -46,12 +48,22 @@ struct PaletteView: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
+                if let inspection = model.bashInspection, inspection.isDangerous {
+                    Label("DANGER · \(inspection.findings.count)", systemImage: "exclamationmark.octagon.fill")
+                        .font(.caption.bold())
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Color.red)
+                        .clipShape(Capsule())
+                        .accessibilityLabel("Dangerous shell command. \(inspection.findings.count) safety findings.")
+                }
                 statusBadge(preview)
             }
 
             HStack(spacing: 9) {
                 Picker("Action", selection: $model.selectedAction) {
-                    ForEach(SmartPasteAction.allCases) { action in
+                    ForEach(model.availableActions) { action in
                         Text(action.title).tag(action)
                     }
                 }
@@ -80,6 +92,9 @@ struct PaletteView: View {
                 .frame(width: 250)
             }
             .controlSize(.small)
+
+            developerOptionsView
+            bashFindingsView
 
             if preview.isStreaming {
                 HStack(spacing: 8) {
@@ -132,6 +147,13 @@ struct PaletteView: View {
                     singular: "potential secret",
                     plural: "potential secrets"
                 )
+                if model.shareReadyMappingCount > 0 {
+                    Button("Clear Share-Ready (\(model.shareReadyMappingCount))") {
+                        onAction(.clearShareReady)
+                    }
+                    .buttonStyle(.borderless)
+                    .foregroundStyle(.orange)
+                }
                 Spacer()
                 Text("No model output is approved before validation.")
                     .font(.caption2)
@@ -146,6 +168,10 @@ struct PaletteView: View {
                 Button("Cancel", role: .cancel) {
                     onAction(.cancel)
                 }
+                Button("Chain Copy") {
+                    onAction(.startChain)
+                }
+                .disabled(preview.isStreaming)
                 Spacer()
                 Button("Paste Original") {
                     onAction(.pasteOriginal)
@@ -162,6 +188,72 @@ struct PaletteView: View {
                 .disabled(!preview.canExport)
             }
             .controlSize(.large)
+        }
+    }
+
+    @ViewBuilder
+    private var developerOptionsView: some View {
+        switch model.selectedAction {
+        case .formatJSON:
+            HStack {
+                Text("JSON indentation")
+                    .font(.caption)
+                Picker("Indent", selection: $model.jsonIndentation) {
+                    ForEach(JSONIndentation.allCases) { indentation in
+                        Text(indentation.title).tag(indentation)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 300)
+                Spacer()
+            }
+        case .jsonToTypeScript:
+            HStack(spacing: 12) {
+                Text("Root name")
+                    .font(.caption)
+                TextField("Root", text: $model.typeScriptRootName)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 200)
+                Toggle("Export declarations", isOn: $model.typeScriptIncludesExport)
+                    .font(.caption)
+                Spacer()
+            }
+        case .shareReady, .restoreIdentifiers:
+            Label(
+                "Fictional ↔ real mappings are volatile RAM only. Clear them explicitly or on quit.",
+                systemImage: "memorychip"
+            )
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        case .inspectBash, .explainBash:
+            Label(
+                "Inspection only: no shell execution. Deterministic danger findings override model output.",
+                systemImage: "lock.shield"
+            )
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        default:
+            EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private var bashFindingsView: some View {
+        if let inspection = model.bashInspection,
+            inspection.isDangerous || inspection.parseError != nil
+        {
+            VStack(alignment: .leading, spacing: 4) {
+                ForEach(Array(inspection.findings.prefix(4).enumerated()), id: \.offset) { _, finding in
+                    Label(finding.title, systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.red)
+                }
+                if let parseError = inspection.parseError {
+                    Label(parseError.message, systemImage: "exclamationmark.circle")
+                        .foregroundStyle(.orange)
+                }
+            }
+            .font(.caption.weight(.semibold))
+            .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -276,6 +368,136 @@ struct PaletteView: View {
             .padding(.vertical, 4)
             .background(Color.secondary.opacity(0.12))
             .clipShape(Capsule())
+    }
+
+    private func chainView(_ session: ChainCopySession) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
+                Image(systemName: "link.circle.fill")
+                    .font(.title2)
+                    .foregroundStyle(.tint)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Chain Copy")
+                        .font(.headline)
+                    Text("Opt-in · Volatile · Exact duplicates ignored")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Text("\(session.items.count) clip\(session.items.count == 1 ? "" : "s")")
+                    .font(.caption.weight(.semibold))
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 5)
+                    .background(Color.secondary.opacity(0.12))
+                    .clipShape(Capsule())
+            }
+
+            Text("Copy the next selection, then invoke ⌘⇧V again. Each read requires that explicit invocation; ClipGum does not watch the pasteboard.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            HStack(spacing: 12) {
+                Picker("Join with", selection: Binding<ChainCopyDelimiter>(
+                    get: { session.delimiter },
+                    set: { onAction(.chainDelimiter($0)) }
+                )) {
+                    ForEach(ChainCopyDelimiter.allCases) { delimiter in
+                        Text(delimiter.title).tag(delimiter)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 480)
+                Spacer()
+                Button("Select all") { onAction(.chainSelectAll(true)) }
+                Button("Select none") { onAction(.chainSelectAll(false)) }
+            }
+            .controlSize(.small)
+
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("CLIPS · TOGGLE / REORDER")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    ScrollView {
+                        LazyVStack(spacing: 7) {
+                            ForEach(session.items) { item in
+                                HStack(alignment: .top, spacing: 8) {
+                                    Button {
+                                        onAction(.chainToggle(item.id))
+                                    } label: {
+                                        Image(systemName: item.isIncluded ? "checkmark.circle.fill" : "circle")
+                                            .foregroundStyle(item.isIncluded ? Color.accentColor : Color.secondary)
+                                    }
+                                    .buttonStyle(.borderless)
+                                    .accessibilityLabel(item.isIncluded ? "Exclude clip" : "Include clip")
+                                    Text(item.text)
+                                        .font(.caption.monospaced())
+                                        .lineLimit(4)
+                                        .textSelection(.enabled)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                    VStack(spacing: 2) {
+                                        Button {
+                                            onAction(.chainMove(item.id, .up))
+                                        } label: {
+                                            Image(systemName: "chevron.up")
+                                        }
+                                        .disabled(session.items.first?.id == item.id)
+                                        Button {
+                                            onAction(.chainMove(item.id, .down))
+                                        } label: {
+                                            Image(systemName: "chevron.down")
+                                        }
+                                        .disabled(session.items.last?.id == item.id)
+                                    }
+                                    .buttonStyle(.borderless)
+                                }
+                                .padding(8)
+                                .background(Color.secondary.opacity(0.07))
+                                .clipShape(RoundedRectangle(cornerRadius: 7))
+                            }
+                        }
+                        .padding(2)
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("LIVE COMBINED PREVIEW")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    ScrollView {
+                        Text(session.combinedPreview.isEmpty
+                            ? "Select at least one clip to build a preview."
+                            : session.combinedPreview)
+                            .font(.callout.monospaced())
+                            .foregroundStyle(session.combinedPreview.isEmpty ? .secondary : .primary)
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(10)
+                    }
+                    .background(Color(nsColor: .textBackgroundColor))
+                    .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .frame(maxHeight: .infinity)
+
+            Text("No clipboard write occurs while assembling or previewing this chain.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            HStack(spacing: 10) {
+                Button("Clear Chain", role: .destructive) { onAction(.chainClear) }
+                Button("Close & Continue") { onAction(.cancel) }
+                Spacer()
+                Button("Copy Combined & Clear") { onAction(.chainCopy) }
+                    .buttonStyle(.borderedProminent)
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(session.combinedPreview.isEmpty)
+            }
+            .controlSize(.large)
+        }
     }
 
     private func messageView(_ message: PaletteMessage) -> some View {

@@ -95,7 +95,7 @@ struct OutputValidator {
         let placeholder = RuleCleaningService.redactionPlaceholder
         let sourceMarkers = occurrenceCount(of: placeholder, in: source)
         let outputMarkers = occurrenceCount(of: placeholder, in: output)
-        if outputMarkers < sourceMarkers {
+        if action != .explainBash, outputMarkers < sourceMarkers {
             issues.append(issue(
                 .missingRedactionMarker,
                 .error,
@@ -130,7 +130,9 @@ struct OutputValidator {
             }
         case .tableToCSV:
             validateCSV(source: source, output: output, issues: &issues)
-        case .clean, .urlClean, .secretScrub, .formatJSON:
+        case .explainBash, .clean, .urlClean, .secretScrub, .shareReady,
+            .restoreIdentifiers, .formatJSON, .minifyJSON, .jsonToTypeScript,
+            .scrubLogs, .inspectBash:
             break
         }
         return ValidationReport(issues: issues)

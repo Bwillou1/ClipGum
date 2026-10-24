@@ -9,13 +9,16 @@ struct OutputSanitizer {
 
         let prefixes: [String]
         switch action {
+        case .explainBash:
+            prefixes = ["Explanation:", "Bash explanation:", "Output:"]
         case .correction:
             prefixes = ["Corrected text:", "Correction:", "Output:"]
         case .rewrite:
             prefixes = ["Rewritten text:", "Rewrite:", "Output:"]
         case .tableToCSV:
             prefixes = ["CSV:", "Output:"]
-        case .clean, .urlClean, .secretScrub, .formatJSON:
+        case .clean, .urlClean, .secretScrub, .shareReady, .restoreIdentifiers,
+            .formatJSON, .minifyJSON, .jsonToTypeScript, .scrubLogs, .inspectBash:
             prefixes = []
         }
         for prefix in prefixes where result.lowercased().hasPrefix(prefix.lowercased())

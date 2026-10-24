@@ -5,7 +5,9 @@ import Foundation
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let cleaner = RuleCleaningService()
     private let pasteboard = SystemPasteboard()
+    private let shareReadySession: ShareReadySession
     private let paletteController = PalettePanelController()
+    private var chainSession = ChainCopySession()
     private lazy var pasteService = PasteService(pasteboard: pasteboard)
 
     let inferencePreferences: InferencePreferences
@@ -26,10 +28,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     override init() {
         let preferences = InferencePreferences()
         let engine = LocalInferenceEngine(configuration: preferences.configuration)
+        let shareReady = ShareReadySession()
         inferencePreferences = preferences
         inferenceEngine = engine
+        shareReadySession = shareReady
         pipeline = SmartPastePipeline(
             engine: engine,
+            shareReadySession: shareReady,
             configuration: preferences.configuration
         )
         super.init()
@@ -94,6 +99,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        shareReadySession.clear()
+        chainSession.clear()
         hotKey?.invalidate()
         inferenceTask?.cancel()
         modelLoadTask?.cancel()
@@ -114,9 +121,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         switch pasteboard.readTextForExplicitUserAction() {
         case .text(let original):
-            let preview = PalettePreview(deterministicResult: cleaner.clean(original))
-            currentPreview = preview
-            showPalette(.preview(preview))
+            if chainSession.isActive {
+                chainSession.add(original)
+                currentPreview = nil
+                showPalette(.chain(chainSession))
+            } else {
+                let preview = PalettePreview(deterministicResult: cleaner.clean(original))
+                currentPreview = preview
+                showPalette(.preview(preview))
+            }
         case .accessDenied:
             showPalette(.message(PaletteMessage(
                 title: "Pasteboard access is denied",
@@ -150,11 +163,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func showPalette(_ content: PaletteContent) {
-        if case .message = content {
+        switch content {
+        case .message, .chain:
             currentPreview = nil
+        case .preview:
+            break
         }
 
         let model = PaletteModel(content: content)
+        model.shareReadyMappingCount = shareReadySession.mappingCount
         paletteModel = model
         paletteController.show(
             model: model,
@@ -183,6 +200,42 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             runTransformation(action)
         case .restoreDeterministic:
             restoreDeterministic(message: nil)
+        case .clearShareReady:
+            shareReadySession.clear()
+            paletteModel?.shareReadyMappingCount = 0
+            if var preview = currentPreview {
+                preview.errorMessage = "Share-Ready mappings were cleared from volatile memory. Existing preview text was not changed."
+                publish(preview)
+            }
+        case .startChain:
+            guard let preview = currentPreview, !preview.isStreaming else { return }
+            chainSession.start(with: preview.original)
+            showPalette(.chain(chainSession))
+        case .chainToggle(let id):
+            chainSession.toggleInclusion(id: id)
+            publishChain()
+        case .chainMove(let id, let direction):
+            chainSession.move(id: id, direction: direction)
+            publishChain()
+        case .chainSelectAll(let included):
+            chainSession.setAllIncluded(included)
+            publishChain()
+        case .chainDelimiter(let delimiter):
+            chainSession.setDelimiter(delimiter)
+            publishChain()
+        case .chainCopy:
+            let combined = chainSession.combinedPreview
+            guard chainSession.isActive, !combined.isEmpty else { return }
+            do {
+                try pasteService.copyResult(combined)
+                chainSession.clear()
+                paletteController.dismiss()
+            } catch {
+                presentExecutionError(error)
+            }
+        case .chainClear:
+            chainSession.clear()
+            paletteController.dismiss()
         case .copyResult:
             guard let preview = currentPreview, preview.canExport else {
                 return
@@ -216,7 +269,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             do {
                 if let result = try pipeline.mechanicalResult(
                     action: action,
-                    input: currentPreview.original
+                    input: currentPreview.original,
+                    options: paletteModel?.developerOptions ?? DeveloperActionOptions()
                 ) {
                     publish(PalettePreview(deterministicResult: result, action: action))
                 }
@@ -298,7 +352,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func publish(_ preview: PalettePreview) {
         currentPreview = preview
+        paletteModel?.shareReadyMappingCount = shareReadySession.mappingCount
         paletteModel?.content = .preview(preview)
+    }
+
+    private func publishChain() {
+        paletteModel?.content = .chain(chainSession)
     }
 
     private func restoreDeterministic(message: String?) {
@@ -408,6 +467,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return description
         }
         if let error = error as? JSONFormattingError,
+            let description = error.errorDescription
+        {
+            return description
+        }
+        if let error = error as? JSONSyntaxError,
+            let description = error.errorDescription
+        {
+            return description
+        }
+        if let error = error as? TypeScriptGenerationError,
             let description = error.errorDescription
         {
             return description

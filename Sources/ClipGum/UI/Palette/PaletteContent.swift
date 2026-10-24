@@ -7,6 +7,14 @@ enum PaletteAction {
     case pasteCleaned
     case copyResult
     case pasteOriginal
+    case clearShareReady
+    case startChain
+    case chainToggle(Int)
+    case chainMove(Int, ChainCopyMoveDirection)
+    case chainSelectAll(Bool)
+    case chainDelimiter(ChainCopyDelimiter)
+    case chainCopy
+    case chainClear
     case openPasteboardPrivacySettings
     case cancel
 }
@@ -82,12 +90,15 @@ struct PalettePreview: Equatable, Sendable {
 
 enum PaletteContent {
     case preview(PalettePreview)
+    case chain(ChainCopySession)
     case message(PaletteMessage)
 
     var panelSize: (width: CGFloat, height: CGFloat) {
         switch self {
         case .preview:
-            return (960, 680)
+            return (1_000, 720)
+        case .chain:
+            return (920, 720)
         case .message:
             return (540, 280)
         }
@@ -99,6 +110,7 @@ enum PaletteDiffMode: String, CaseIterable, Identifiable {
     case inline
 
     var id: String { rawValue }
+
     var title: String {
         switch self {
         case .sideBySide: return "Before / After"
@@ -112,8 +124,35 @@ final class PaletteModel: ObservableObject {
     @Published var content: PaletteContent
     @Published var selectedAction: SmartPasteAction = .clean
     @Published var diffMode: PaletteDiffMode = .sideBySide
+    @Published var jsonIndentation: JSONIndentation = .twoSpaces
+    @Published var typeScriptRootName = "Root"
+    @Published var typeScriptIncludesExport = true
+    @Published var shareReadyMappingCount = 0
+
+    let availableActions: [SmartPasteAction]
+    let bashInspection: BashInspection?
+
+    var developerOptions: DeveloperActionOptions {
+        DeveloperActionOptions(
+            jsonIndentation: jsonIndentation,
+            typeScriptRootName: typeScriptRootName,
+            typeScriptIncludesExport: typeScriptIncludesExport
+        )
+    }
 
     init(content: PaletteContent) {
         self.content = content
+        if case .preview(let preview) = content {
+            let classifier = DeveloperContentClassifier()
+            availableActions = classifier.actions(for: preview.original)
+            if classifier.classify(preview.original) == .shell {
+                bashInspection = BashInspector().inspect(preview.original)
+            } else {
+                bashInspection = nil
+            }
+        } else {
+            availableActions = []
+            bashInspection = nil
+        }
     }
 }
