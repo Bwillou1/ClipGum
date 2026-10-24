@@ -26,8 +26,6 @@ jobs:
           python3 -m json.tool Build/SBOM.json >/dev/null
           python3 Build/generate_sbom.py --output /tmp/ClipGum-SBOM.json
           python3 -m json.tool /tmp/ClipGum-SBOM.json >/dev/null
-      - name: Verify Sparkle rejects a tampered archive
-        run: ./Build/test_sparkle_tamper.sh
       - name: Run unit tests
         shell: bash
         run: |
@@ -68,3 +66,5 @@ jobs:
           exit "$status"
       - name: Validate development distribution policy
         run: ./Build/validate_distribution.sh build/ClipGum.app --development
+      - name: Verify Sparkle rejects a tampered archive
+        run: ./Build/test_sparkle_tamper.sh

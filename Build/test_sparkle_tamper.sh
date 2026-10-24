@@ -8,7 +8,12 @@ if [[ -z "$SIGN_UPDATE" ]]; then
     find "$ROOT/.build/artifacts" -type f -name sign_update -print 2>/dev/null | sort
   )
 fi
-[[ -x "$SIGN_UPDATE" ]] || { echo "Sparkle 2.10.0 sign_update not found" >&2; exit 2; }
+if [[ ! -x "$SIGN_UPDATE" ]]; then
+  printf '::error::Sparkle 2.10.0 sign_update was not found or is not executable (path=%s).\n' "$SIGN_UPDATE"
+  exit 2
+fi
+printf 'Using Sparkle sign_update: %s\n' "$SIGN_UPDATE"
+file "$SIGN_UPDATE"
 
 TEMP="$(mktemp -d -t clipgum-sparkle-tamper)"
 trap 'rm -rf "$TEMP"' EXIT
@@ -22,11 +27,21 @@ chmod 600 "$KEY"
 printf 'ClipGum signed-update integration fixture\n' >"$ARCHIVE"
 cp "$ARCHIVE" "$TAMPERED"
 
-SIGNATURE="$("$SIGN_UPDATE" --ed-key-file "$KEY" -p "$ARCHIVE")"
-"$SIGN_UPDATE" --ed-key-file "$KEY" --verify "$ARCHIVE" "$SIGNATURE"
+if ! SIGNATURE="$("$SIGN_UPDATE" --ed-key-file "$KEY" -p "$ARCHIVE")"; then
+  printf '::error::Sparkle could not sign the intact fixture with the supported 32-byte test seed.\n'
+  exit 11
+fi
+if [[ ! "$SIGNATURE" =~ ^[A-Za-z0-9+/]+={0,2}$ ]]; then
+  printf '::error::Sparkle returned malformed signature metadata for the intact fixture.\n'
+  exit 12
+fi
+if ! "$SIGN_UPDATE" --ed-key-file "$KEY" --verify "$ARCHIVE" "$SIGNATURE"; then
+  printf '::error::Sparkle rejected its own intact fixture signature.\n'
+  exit 13
+fi
 printf 'X' | dd of="$TAMPERED" bs=1 seek=7 conv=notrunc 2>/dev/null
 if "$SIGN_UPDATE" --ed-key-file "$KEY" --verify "$TAMPERED" "$SIGNATURE"; then
-  echo "Sparkle accepted a tampered update archive" >&2
-  exit 1
+  printf '::error::Sparkle accepted a tampered update archive.\n'
+  exit 14
 fi
 printf 'Sparkle rejected the tampered archive and accepted the intact fixture.\n'
