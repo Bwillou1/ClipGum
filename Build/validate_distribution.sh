@@ -6,8 +6,10 @@ APP_BUNDLE="${1:?usage: Build/validate_distribution.sh ClipGum.app [--developmen
 MODE="${2:---development}"
 [[ "$MODE" == --development || "$MODE" == --production ]] || { printf '::error::Invalid validation mode\n' >&2; exit 2; }
 [[ -d "$APP_BUNDLE/Contents/Frameworks/Sparkle.framework" ]] || { printf '::error::Sparkle.framework is not embedded\n' >&2; exit 1; }
-find "$APP_BUNDLE/Contents/Frameworks/Sparkle.framework" -type d -name 'InstallerLauncher.xpc' -print -quit | grep -q . \
-  || { printf '::error::Sparkle InstallerLauncher.xpc is missing\n' >&2; exit 1; }
+# Sparkle's SparkleInstallerLauncher target ships as Installer.xpc;
+# INSTALLER_LAUNCHER_NAME is Installer in ConfigCommon.xcconfig.
+find "$APP_BUNDLE/Contents/Frameworks/Sparkle.framework" -type d -name 'Installer.xpc' -print -quit | grep -q . \
+  || { printf '::error::Sparkle Installer.xpc is missing\n' >&2; exit 1; }
 [[ -f "$APP_BUNDLE/Contents/Resources/SBOM.json" ]] || { printf '::error::SBOM is missing\n' >&2; exit 1; }
 find "$APP_BUNDLE/Contents/Resources" -type f -name 'Sparkle.txt' -print -quit | grep -q . \
   || { printf '::error::Embedded license resources are missing\n' >&2; exit 1; }
