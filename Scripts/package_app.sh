@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+trap 'status=$?; printf "::error::Packaging failed near line %s (exit %s).\n" "$LINENO" "$status" >&2' ERR
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONFIGURATION="${CONFIGURATION:-release}"

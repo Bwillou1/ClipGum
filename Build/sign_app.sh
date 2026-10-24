@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+trap 'status=$?; printf "::error::Signing failed near line %s (exit %s).\n" "$LINENO" "$status" >&2' ERR
 
 APP_BUNDLE="${1:?usage: Build/sign_app.sh /path/ClipGum.app [signing-identity]}"
 IDENTITY="${2:-${SIGNING_IDENTITY:--}}"
@@ -17,14 +18,16 @@ sign_nested() {
   local item="$1"
   local entitlement_file
   entitlement_file="$(mktemp -t clipgum-entitlements)"
-  local entitlement_args=()
   # Preserve Sparkle helper/XPC sandbox entitlements, never the main app's
-  # network-client entitlement. Unsigned nested code receives no entitlements.
-  if codesign -d --entitlements :- "$item" >"$entitlement_file" 2>/dev/null \
-    && grep -q '<key>' "$entitlement_file"; then
-    entitlement_args=(--entitlements "$entitlement_file")
+  # network-client entitlement. Unsigned nested code receives an explicitly
+  # empty entitlement dictionary (and no empty-array expansion on Bash 3.2).
+  if ! codesign -d --entitlements :- "$item" >"$entitlement_file" 2>/dev/null \
+    || ! grep -q '<key>' "$entitlement_file"; then
+    printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>' \
+      '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' \
+      '<plist version="1.0"><dict/></plist>' >"$entitlement_file"
   fi
-  codesign "${COMMON[@]}" "${entitlement_args[@]}" "$item"
+  codesign "${COMMON[@]}" --entitlements "$entitlement_file" "$item"
   rm -f "$entitlement_file"
 }
 
