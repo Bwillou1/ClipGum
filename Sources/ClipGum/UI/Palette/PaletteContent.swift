@@ -167,13 +167,14 @@ final class PaletteModel: ObservableObject {
                 plainText: preview.original
             )
             tableDetection = detection
-            availableActions = classifier.actions(
+            let actions = classifier.actions(
                 for: preview.original,
                 hasRichText: document?.hasRichFlavor ?? false,
                 hasTable: detection != nil
             )
+            availableActions = actions
             suggestedActions = (appProfile?.suggestedActions ?? []).filter {
-                availableActions.contains($0)
+                actions.contains($0)
             }
             if classifier.classify(preview.original) == .shell {
                 bashInspection = BashInspector().inspect(preview.original)
