@@ -149,7 +149,7 @@ final class UpdateManager: NSObject, ObservableObject, SPUUpdaterDelegate {
     func updater(
         _ updater: SPUUpdater,
         willDownloadUpdate item: SUAppcastItem,
-        withRequest request: NSMutableURLRequest
+        with request: NSMutableURLRequest
     ) {
         request.cachePolicy = .reloadIgnoringLocalCacheData
         request.httpShouldHandleCookies = false
