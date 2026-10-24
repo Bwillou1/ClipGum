@@ -1,18 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
+trap 'status=$?; printf "::error::Distribution validation failed near line %s (exit %s).\n" "$LINENO" "$status" >&2' ERR
 
 APP_BUNDLE="${1:?usage: Build/validate_distribution.sh ClipGum.app [--development|--production]}"
 MODE="${2:---development}"
-[[ "$MODE" == --development || "$MODE" == --production ]] || { echo "Invalid validation mode" >&2; exit 2; }
-[[ -d "$APP_BUNDLE/Contents/Frameworks/Sparkle.framework" ]] || { echo "Sparkle.framework is not embedded" >&2; exit 1; }
+[[ "$MODE" == --development || "$MODE" == --production ]] || { printf '::error::Invalid validation mode\n' >&2; exit 2; }
+[[ -d "$APP_BUNDLE/Contents/Frameworks/Sparkle.framework" ]] || { printf '::error::Sparkle.framework is not embedded\n' >&2; exit 1; }
 find "$APP_BUNDLE/Contents/Frameworks/Sparkle.framework" -type d -name 'InstallerLauncher.xpc' -print -quit | grep -q . \
-  || { echo "Sparkle InstallerLauncher.xpc is missing" >&2; exit 1; }
-[[ -f "$APP_BUNDLE/Contents/Resources/SBOM.json" ]] || { echo "SBOM is missing" >&2; exit 1; }
+  || { printf '::error::Sparkle InstallerLauncher.xpc is missing\n' >&2; exit 1; }
+[[ -f "$APP_BUNDLE/Contents/Resources/SBOM.json" ]] || { printf '::error::SBOM is missing\n' >&2; exit 1; }
 find "$APP_BUNDLE/Contents/Resources" -type f -name 'Sparkle.txt' -print -quit | grep -q . \
-  || { echo "Embedded license resources are missing" >&2; exit 1; }
+  || { printf '::error::Embedded license resources are missing\n' >&2; exit 1; }
 codesign --verify --deep --strict --verbose=2 "$APP_BUNDLE"
 otool -L "$APP_BUNDLE/Contents/MacOS/ClipGum" | grep '@rpath/Sparkle.framework' >/dev/null \
-  || { echo "Sparkle dynamic linkage is missing" >&2; exit 1; }
+  || { printf '::error::Sparkle dynamic linkage is missing\n' >&2; exit 1; }
 
 python3 - "$APP_BUNDLE" "$MODE" <<'PY'
 import base64
@@ -20,7 +21,14 @@ import pathlib
 import plistlib
 import subprocess
 import sys
+import traceback
 import urllib.parse
+
+def report_exception(kind, value, trace):
+    frame = traceback.extract_tb(trace)[-1]
+    print(f"::error::Policy validation failed at Python line {frame.lineno}: {value}", file=sys.stderr)
+
+sys.excepthook = report_exception
 
 app = pathlib.Path(sys.argv[1])
 mode = sys.argv[2]
