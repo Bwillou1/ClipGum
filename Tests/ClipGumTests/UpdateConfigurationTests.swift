@@ -66,6 +66,26 @@ final class UpdateConfigurationTests: XCTestCase {
         XCTAssertFalse(HTTPSURLPolicy.isValid(string: "ftp://example.com/a"))
     }
 
+    func testPrivacyCriticalSparkleDelegateSelectorsAreRegistered() {
+        let suite = "ClipGumTests.UpdateSelectors.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let manager = UpdateManager(defaults: defaults, bundle: .main)
+        for name in [
+            "feedURLStringForUpdater:",
+            "allowedChannelsForUpdater:",
+            "feedParametersForUpdater:sendingSystemProfile:",
+            "allowedSystemProfileKeysForUpdater:",
+            "updaterShouldPromptForPermissionToCheckForUpdates:",
+            "updater:shouldProceedWithUpdate:updateCheck:error:",
+            "updater:shouldDownloadReleaseNotesForUpdate:",
+            "updater:willDownloadUpdate:withRequest:",
+            "updater:didFindValidUpdate:"
+        ] {
+            XCTAssertTrue(manager.responds(to: NSSelectorFromString(name)), name)
+        }
+    }
+
     func testUpdatePreferencesDefaultToStableManualDaily() {
         let suite = "ClipGumTests.Updates.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!

@@ -460,7 +460,7 @@ Sources/ClipGum/
     ├── Onboarding/                   # First-run trigger, permissions, readiness, verified download
     └── Settings/                     # Inference, Updates, Privacy & Audit, Licenses/SBOM
 
-Tests/ClipGumTests/                   # 229 XCTest cases; no model weights required
+Tests/ClipGumTests/                   # 230 XCTest cases; no model weights required
 Resources/                            # Info.plist and minimal sandbox entitlements
 Build/                                # Signing/notary/DMG/Cask/SBOM/appcast and validation scripts
 BETA_TESTING.md                       # Beta privacy guarantees, feedback, and test protocols
@@ -471,7 +471,7 @@ Delayed work consists of the one-shot paste focus handoff and one-shot idle offl
 
 ## Tests and manual verification
 
-The **229 XCTest cases** cover:
+The **230 XCTest cases** cover:
 
 - All Phase 1 URL, secret, pasteboard-marker, access-policy, and explicit-paste behavior.
 - Prompt contents/non-interpolation, configuration clamps, local identifiers, and safe OOM classification.

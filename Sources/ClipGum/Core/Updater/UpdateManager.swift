@@ -98,32 +98,32 @@ final class UpdateManager: NSObject, ObservableObject, SPUUpdaterDelegate {
 
     // MARK: - SPUUpdaterDelegate
 
-    func feedURLStringForUpdater(_ updater: SPUUpdater) -> String? {
+    func feedURLString(for updater: SPUUpdater) -> String? {
         configuration?.feedURL.absoluteString
     }
 
-    func allowedChannelsForUpdater(_ updater: SPUUpdater) -> Set<String> {
+    func allowedChannels(for updater: SPUUpdater) -> Set<String> {
         channel.allowedSparkleChannels
     }
 
-    func feedParametersForUpdater(
-        _ updater: SPUUpdater,
+    func feedParameters(
+        for updater: SPUUpdater,
         sendingSystemProfile: Bool
     ) -> [[String: String]] {
         []
     }
 
-    func allowedSystemProfileKeysForUpdater(_ updater: SPUUpdater) -> [String] {
+    func allowedSystemProfileKeys(for updater: SPUUpdater) -> [String] {
         []
     }
 
-    func updaterShouldPromptForPermissionToCheckForUpdates(_ updater: SPUUpdater) -> Bool {
+    func updaterShouldPromptForPermissionToCheck(forUpdates updater: SPUUpdater) -> Bool {
         false
     }
 
     func updater(
         _ updater: SPUUpdater,
-        shouldProceedWith updateItem: SUAppcastItem,
+        shouldProceedWithUpdate updateItem: SUAppcastItem,
         updateCheck: SPUUpdateCheck
     ) throws {
         guard updateItem.signingValidationStatus == .succeeded else {

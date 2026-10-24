@@ -15,7 +15,7 @@ enum ModelIntegrityVerifier {
         var total: Int64 = 0
         do {
             while true {
-                let data = try autoreleasepool { try handle.readData(upToCount: 1_048_576) }
+                let data = try autoreleasepool { try handle.read(upToCount: 1_048_576) }
                 guard let data, !data.isEmpty else { break }
                 total += Int64(data.count)
                 guard total <= expected.expectedBytes else {
