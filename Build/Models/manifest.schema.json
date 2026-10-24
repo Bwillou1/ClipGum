@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Bwillou1/ClipGum/Build/Models/manifest.schema.json",
+  "title": "ClipGum verified model acquisition manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["formatVersion", "identifier", "displayName", "backend", "minimumUnifiedRAMBytes", "files"],
+  "properties": {
+    "formatVersion": { "const": 1 },
+    "identifier": {
+      "type": "string",
+      "maxLength": 128,
+      "pattern": "^[^/\\\\:]+$"
+    },
+    "displayName": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "backend": { "enum": ["mlx", "gguf"] },
+    "minimumUnifiedRAMBytes": { "type": "integer", "minimum": 0 },
+    "files": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "url", "expectedBytes", "sha256"],
+        "properties": {
+          "name": { "type": "string", "maxLength": 255, "pattern": "^[^/\\\\:]+$" },
+          "url": { "type": "string", "format": "uri", "pattern": "^https://" },
+          "expectedBytes": { "type": "integer", "minimum": 1 },
+          "sha256": { "type": "string", "pattern": "^[0-9A-Fa-f]{64}$" }
+        }
+      }
+    }
+  }
+}

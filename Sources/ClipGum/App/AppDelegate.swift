@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import SwiftUI
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -12,10 +13,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private lazy var pasteService = PasteService(pasteboard: pasteboard)
 
     let inferencePreferences: InferencePreferences
+    let updateManager: UpdateManager
+    let diagnostics: DiagnosticsEngine
     private let inferenceEngine: LocalInferenceEngine
     private let pipeline: SmartPastePipeline
+    private let modelDownloadController: ModelDownloadController
 
     private var menuBarController: MenuBarController?
+    private var onboardingController: OnboardingController?
+    private var onboardingWindow: NSWindow?
     private var hotKey: GlobalHotKey?
     private var paletteModel: PaletteModel?
     private var currentPreview: PalettePreview?
@@ -34,6 +40,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         inferencePreferences = preferences
         inferenceEngine = engine
         shareReadySession = shareReady
+        updateManager = UpdateManager()
+        diagnostics = DiagnosticsEngine()
+        modelDownloadController = ModelDownloadController()
         pipeline = SmartPastePipeline(
             engine: engine,
             shareReadySession: shareReady,
@@ -94,6 +103,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } catch {
             presentHotKeyError(error)
         }
+
+        updateManager.start()
+        presentOnboardingIfNeeded()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -109,6 +121,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         inferenceTask?.cancel()
         modelLoadTask?.cancel()
         modelAccess = nil
+        onboardingWindow?.close()
+        onboardingWindow = nil
+        onboardingController = nil
     }
 
     /// The only production entry point that reads the general pasteboard.
@@ -314,6 +329,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         if action.isMechanical {
+            let started = DispatchTime.now().uptimeNanoseconds
+            let feature = DiagnosticFeature(action: action)
             do {
                 if let result = try pipeline.mechanicalResult(
                     action: action,
@@ -322,8 +339,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     document: currentDocument
                 ) {
                     publish(PalettePreview(deterministicResult: result, action: action))
+                    if let feature {
+                        diagnostics.record(
+                            feature: feature,
+                            latencyNanoseconds: DispatchTime.now().uptimeNanoseconds - started
+                        )
+                    }
+                } else if let feature {
+                    diagnostics.record(
+                        feature: feature,
+                        latencyNanoseconds: DispatchTime.now().uptimeNanoseconds - started,
+                        error: .invalidInput
+                    )
                 }
             } catch {
+                if let feature {
+                    diagnostics.record(
+                        feature: feature,
+                        latencyNanoseconds: DispatchTime.now().uptimeNanoseconds - started,
+                        error: diagnosticErrorCode(for: error)
+                    )
+                }
                 restoreDeterministic(message: userFacingMessage(for: error))
             }
             return
@@ -339,6 +375,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         let original = currentPreview.original
+        let diagnosticStarted = DispatchTime.now().uptimeNanoseconds
+        let diagnosticFeature = DiagnosticFeature(action: action)
         let baseline = cleaner.clean(original)
         let generationID = UUID()
         activeGenerationID = generationID
@@ -385,12 +423,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                         preview.validation = result.validation
                         preview.streamedChunks = result.streamedChunks
                         preview.errorMessage = nil
+                        if let diagnosticFeature {
+                            self.diagnostics.record(
+                                feature: diagnosticFeature,
+                                latencyNanoseconds: DispatchTime.now().uptimeNanoseconds - diagnosticStarted,
+                                error: result.validation.canExport ? nil : .invariantBlocked
+                            )
+                        }
                     }
                     self.publish(preview)
                 }
             } catch {
                 guard self.activeGenerationID == generationID else {
                     return
+                }
+                if let diagnosticFeature {
+                    self.diagnostics.record(
+                        feature: diagnosticFeature,
+                        latencyNanoseconds: DispatchTime.now().uptimeNanoseconds - diagnosticStarted,
+                        error: error is CancellationError ? .cancelled : self.diagnosticErrorCode(for: error)
+                    )
                 }
                 if !(error is CancellationError) {
                     self.restoreDeterministic(message: self.userFacingMessage(for: error))
@@ -505,6 +557,96 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             } catch {
                 self.presentModelMessage(self.userFacingMessage(for: error))
             }
+        }
+    }
+
+    func copyDiagnosticsPayload(_ text: String) -> Bool {
+        do {
+            try DiagnosticPayloadSchema.validate(Data(text.utf8))
+            try pasteService.copyResult(text)
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    func clearAllData() {
+        diagnostics.clearAllData()
+        shareReadySession.clear()
+        chainSession.clear()
+        inferenceTask?.cancel()
+        inferenceTask = nil
+        activeGenerationID = nil
+        currentPreview = nil
+        currentDocument = nil
+        paletteModel = nil
+        targetApplication = nil
+        paletteController.dismiss()
+    }
+
+    func replayOnboarding() {
+        presentOnboardingIfNeeded(force: true)
+    }
+
+    private func presentOnboardingIfNeeded(force: Bool = false) {
+        if let onboardingWindow {
+            onboardingWindow.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+        let controller = OnboardingController()
+        guard force || !controller.isCompleted else { return }
+        controller.onFinish = { [weak self] in
+            self?.onboardingWindow?.close()
+            self?.onboardingWindow = nil
+            self?.onboardingController = nil
+        }
+        let rootView = OnboardingView(
+            controller: controller,
+            diagnostics: diagnostics,
+            downloadController: modelDownloadController,
+            onChooseModel: { [weak self] backend in
+                self?.chooseModel(backend: backend)
+            },
+            onLoadVerifiedModel: { [weak self] verified in
+                self?.selectModel(
+                    url: verified.modelURL,
+                    backend: verified.manifest.backend.inferenceBackend
+                )
+            }
+        )
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 720, height: 570),
+            styleMask: [.titled, .closable, .miniaturizable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "Welcome to ClipGum"
+        window.contentViewController = NSHostingController(rootView: rootView)
+        window.isReleasedWhenClosed = false
+        window.level = .floating
+        window.center()
+        onboardingController = controller
+        onboardingWindow = window
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+    }
+
+    private func diagnosticErrorCode(for error: Error) -> DiagnosticErrorCode {
+        guard let inferenceError = error as? InferenceEngineError else {
+            return .invalidInput
+        }
+        switch inferenceError {
+        case .invalidInput, .invalidIdentifier, .contextLimit:
+            return .invalidInput
+        case .inputTooLarge, .outputTooLarge:
+            return .outputLimit
+        case .invalidModel, .modelNotLoaded, .engineBusy, .unsupportedArchitecture:
+            return .modelUnavailable
+        case .modelTooLarge, .outOfMemory:
+            return .modelOutOfMemory
+        case .generationFailed:
+            return .inferenceFailed
         }
     }
 

@@ -26,7 +26,7 @@ final class PasteService {
 
     init(
         pasteboard: SystemPasteboard,
-        accessibilityTrusted: @escaping (Bool) -> Bool = PasteService.checkAccessibility,
+        accessibilityTrusted: @escaping (Bool) -> Bool = SystemPermissionCenter.accessibilityTrusted,
         applicationActivator: @escaping (NSRunningApplication?) -> Void = PasteService.activate,
         keystrokePoster: @escaping () -> Void = PasteService.postCommandV,
         focusSettleDelay: TimeInterval = 0.05
@@ -73,30 +73,6 @@ final class PasteService {
         DispatchQueue.main.asyncAfter(deadline: .now() + focusSettleDelay) {
             self.keystrokePoster()
         }
-    }
-
-    private static func checkAccessibility(prompt: Bool) -> Bool {
-        let key = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
-        if AXIsProcessTrustedWithOptions([key: false] as CFDictionary) {
-            return true
-        }
-
-        // Clipy's production fallback: some ad-hoc signed builds can report
-        // false even when a focused-application AX query is already permitted.
-        var value: CFTypeRef?
-        let queryResult = AXUIElementCopyAttributeValue(
-            AXUIElementCreateSystemWide(),
-            kAXFocusedApplicationAttribute as CFString,
-            &value
-        )
-        if queryResult == .success || queryResult == .noValue {
-            return true
-        }
-
-        guard prompt else {
-            return false
-        }
-        return AXIsProcessTrustedWithOptions([key: true] as CFDictionary)
     }
 
     private static func activate(_ application: NSRunningApplication?) {

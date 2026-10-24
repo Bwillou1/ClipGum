@@ -18,7 +18,8 @@ let package = Package(
         .package(
             url: "https://github.com/mattt/llama.swift",
             revision: "018619bf56f92cc85286150611609f456813826f"
-        )
+        ),
+        .package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.10.0")
     ],
     targets: [
         .executableTarget(
@@ -27,9 +28,13 @@ let package = Package(
                 .product(name: "MLX", package: "mlx-swift"),
                 .product(name: "MLXLLM", package: "mlx-swift-lm"),
                 .product(name: "MLXLMCommon", package: "mlx-swift-lm"),
-                .product(name: "LlamaSwift", package: "llama.swift")
+                .product(name: "LlamaSwift", package: "llama.swift"),
+                .product(name: "Sparkle", package: "Sparkle")
             ],
             path: "Sources/ClipGum",
+            resources: [
+                .process("UI/Settings/Licenses/Resources")
+            ],
             linkerSettings: [
                 .linkedFramework("AppKit"),
                 .linkedFramework("ApplicationServices"),

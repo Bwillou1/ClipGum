@@ -9,7 +9,20 @@ struct ClipGumApp: App {
         // AppDelegate owns the real NSStatusItem. This empty Settings scene
         // keeps the app scene-based without creating a second menu bar item.
         Settings {
-            InferenceSettingsView(preferences: appDelegate.inferencePreferences)
+            PublicBetaSettingsView(
+                inference: appDelegate.inferencePreferences,
+                updates: appDelegate.updateManager,
+                diagnostics: appDelegate.diagnostics,
+                onCopyDiagnostics: { [weak appDelegate] text in
+                    appDelegate?.copyDiagnosticsPayload(text) ?? false
+                },
+                onClearAllData: { [weak appDelegate] in
+                    appDelegate?.clearAllData()
+                },
+                onReplayOnboarding: { [weak appDelegate] in
+                    appDelegate?.replayOnboarding()
+                }
+            )
         }
     }
 }

@@ -1,6 +1,6 @@
 # ClipGum
 
-**Phase 4 — Office workflows, developer tools, and local inference for macOS 14+ on Apple Silicon.**
+**Phase 5 — secure public-beta distribution, signed updates, privacy audit, and verified local model acquisition for macOS 14+ on Apple Silicon.**
 
 Copy normally, press **⌘⇧V**, inspect deterministic or locally generated output, then choose exactly what happens next. ClipGum still does not watch clipboard changes, keep history, perform cloud inference, or rewrite the pasteboard on its own.
 
@@ -177,6 +177,43 @@ A mismatch produces an error-severity issue, disables Copy/Paste, and displays t
 
 `OfficeAppProfileResolver` maps only `NSWorkspace.shared.frontmostApplication` metadata for Word, Excel, Outlook, Mail, Slack, Safari/Chrome/Firefox/Edge/Arc, and a fallback. The HUD can suggest Rich Text Sanitizer, PDF Repair, Table Convert, Professional Email, Slack Summary, Correction, or URL Clean when those actions are supported by the already-captured document. Selecting a suggestion does not run it. Profiling never accesses the pasteboard and cannot trigger a background read.
 
+## Phase 5 public-beta hardening
+
+### Signed distribution and release outputs
+
+`Build/` contains the external-distribution pipeline. `Build/sign_app.sh` signs nested Sparkle helpers/XPC/frameworks inside-out with hardened runtime and then signs the main app with an exact minimal entitlement allowlist. No JIT, unsigned-executable-memory, library-validation, camera, microphone, or location exception is present. Sparkle helper entitlements are preserved rather than receiving the main app's network access.
+
+`Build/release.sh` requires a Developer ID Application identity, a `notarytool` **Keychain profile**, a public HTTPS appcast URL, and Sparkle's public Ed25519 key. It produces a signed/notarized/stapled UDZO DMG containing the app and an `/Applications` drag-and-drop symlink, a `clipgum.rb` Homebrew Cask with automatic final-DMG SHA-256, a CycloneDX 1.5 SBOM, and a signed appcast. Credentials and private Ed25519 keys are never stored in the repository. Development packaging remains ad-hoc and leaves the updater disabled when public metadata is blank. See [`Build/README.md`](Build/README.md).
+
+### Sparkle 2 updates
+
+`Core/Updater/UpdateManager.swift` strongly retains `SPUStandardUpdaterController` and starts it only after validating:
+
+- A strict-HTTPS feed with no URL userinfo.
+- A canonical base64-encoded 32-byte Ed25519 `SUPublicEDKey`.
+- `SURequireSignedFeed` and `SUVerifyUpdateBeforeExtraction`.
+- Sparkle downloader XPC disabled, as required for a main app with network client.
+
+The delegate also requires signed-appcast success and an HTTPS enclosure before proceeding, rejects non-HTTPS external release notes, removes cookies/authorization from update requests, and returns no system-profile keys or extra feed parameters. Stable uses Sparkle's default channel; beta explicitly adds only `beta`. Automatic checks default off and are applied **before** Sparkle's first scheduled cycle; daily/weekly frequency and manual Check for Updates are in Settings. Automatic downloading/installation is disabled. Release notes appear in Sparkle's standard window and a sanitized Settings viewer.
+
+### Content firewall and Privacy & Audit
+
+`Services/Diagnostics` has no uploader, endpoint, free-form event name, free-form error string, or persistent event store. Feature names and errors are closed enums; the only record inputs are an enum, elapsed nanoseconds, and an optional error enum. Payloads contain activation counts, nearest-rank p50/p95 latency, peak whole-process resident RAM, and fixed error counts. A second independent JSON-schema allowlist rejects unexpected fields and unknown enum strings.
+
+Diagnostics are off by default in onboarding and Preferences. Disabling clears prior values. Privacy & Audit shows the exact canonical JSON and copies that same schema-validated text only after an explicit button action. **Clear All Data** clears diagnostic counters/latencies/errors/peak RAM and withdraws opt-in, while also clearing volatile preview, Chain Copy, and Share-Ready state. Downloaded models and ordinary preferences are not deleted. There is no app analytics/crash-reporting SDK; operating-system crash-report behavior remains subject to macOS's own privacy controls.
+
+### First run, permissions, and verified models
+
+The three-step walkthrough covers explicit ⌘⇧V-only capture, sensitive-marker refusal, no-write preview, Accessibility and Paste from Other Apps recovery, Input Monitoring guidance without an unnecessary prompt, Apple Silicon/unified-RAM readiness, verified weights, and diagnostics opt-in. The palette and onboarding show an **Offline / Local Only** shield for inference; only explicit updates/model downloads use networking.
+
+Existing local models remain read-only and session-selected. Alternatively, select a local manifest conforming to [`Build/Models/manifest.schema.json`](Build/Models/manifest.schema.json), then separately choose Download & Verify. Manifest URLs must be HTTPS; filenames, counts, backend layout, total size, and RAM are validated before transport. An ephemeral cookieless/credentialless downloader cancels oversize responses and non-HTTPS redirects. Files are staged, streamed through SHA-256, and installed atomically; corrupt/tampered files and staging data are removed, and existing identifiers are not overwritten. No unverified publisher URL or hash is hard-coded.
+
+### Licenses, SBOM, and validation
+
+Settings → Licenses embeds ClipGum and third-party license/credits text for Sparkle, MLX, MLX Swift/LM, llama.swift, llama.cpp, Boop, Maccy, and PrismML Ternary Bonsai attribution. PrismML weights are optional external works, not bundled or relicensed. `Build/SBOM.json` records direct pins and the llama.cpp binary provenance. Pure Paste-style minimal-permission/zero-telemetry requirements are design references only; proprietary Pure Paste source was not inspected.
+
+Phase 5 adds update-policy, diagnostics, model-integrity, onboarding/license, network-isolation, and entitlement tests. `Build/test_sparkle_tamper.sh` uses Sparkle's real `sign_update --verify` with a test-only key to accept intact and reject modified archives. [`Build/VALIDATION.md`](Build/VALIDATION.md), [`Build/FRESH_PROFILE.md`](Build/FRESH_PROFILE.md), and [`BETA_TESTING.md`](BETA_TESTING.md) distinguish automated coverage from real notarization, Gatekeeper, fresh-profile, physical-model, and full update-install outcomes.
+
 ## Build and runtime prerequisites
 
 ### For the app and deterministic tests
@@ -187,13 +224,14 @@ A mismatch produces an error-severity issue, disables Copy/Paste, and displays t
   - `mlx-swift` **0.31.3**
   - `mlx-swift-lm` **2.31.3** (the corrected LM-only package manifest; earlier split tags retain stale non-LM target paths)
   - `mattt/llama.swift` at commit `018619bf56f92cc85286150611609f456813826f`, which re-exports llama.cpp **b10549**'s prebuilt XCFramework.
+  - `sparkle-project/Sparkle` **2.10.0**, using its checksummed SPM binary target.
 
 No model weights are bundled. Unit tests use mocks and do not download or load a model.
 
 ### Additional requirements for local inference
 
 - An **Apple Silicon** Mac. Backends fail safely with `unsupportedArchitecture` elsewhere.
-- A local model already acquired from a publisher you trust:
+- A local model already acquired from a publisher you trust, or an explicit version-1 verified download manifest (see Phase 5 below):
   - **MLX:** a model directory containing `config.json`, tokenizer files, and one or more `.safetensors` files.
   - **GGUF:** a local `.gguf` file supported by llama.cpp b10549. An instruct model with an embedded chat template is strongly recommended.
 - Sufficient unified memory for weights, context, Metal buffers, and the rest of the system. Start with a small 2B/4B quantized instruct model.
@@ -214,7 +252,7 @@ Or build and open in one step:
 ./Scripts/package_app.sh --open
 ```
 
-Tests use unique **named pasteboards**, never `NSPasteboard.general`, so they do not overwrite the developer's real clipboard. The package script builds a release executable, creates `build/ClipGum.app`, installs sandbox metadata, and ad-hoc signs it for local development. It is not a Developer ID/notarization pipeline. Accessibility grants can be tied to a code signature, so macOS may ask again after rebuilding or moving an ad-hoc signed app.
+Tests use unique **named pasteboards**, never `NSPasteboard.general`, so they do not overwrite the developer's real clipboard. The package script builds a release executable, embeds dependency resources and Sparkle, creates `build/ClipGum.app`, installs hardened-runtime/sandbox metadata, and ad-hoc signs it by default for local development. For Developer ID signing, notarization, DMG/Cask/SBOM, and signed appcast generation, use [`Build/README.md`](Build/README.md). Accessibility grants can be tied to a code signature, so macOS may ask again after rebuilding or moving an ad-hoc signed app.
 
 A macOS CI workflow runs tests and packaging on pushes and pull requests.
 
@@ -325,10 +363,10 @@ Accessibility is requested **only for Paste Cleaned / Paste Original**, because 
 - Writes exist only in `writeTextForExplicitUserAction` / `writeDocumentForExplicitUserAction`, called by Copy Result, Copy Combined & Clear, or an approved paste action. Rich output is written as one item; no action writes automatically after preview or app profiling.
 - Mechanical actions do not load or call a model.
 - Models load only after explicit file selection or an explicit LLM Run.
-- No inference network entitlement or app network client is present; MLX uses `.directory`, not a repository downloader.
-- The sandbox adds only user-selected read-only file access for local models. There is no persistent bookmark entitlement.
-- Preferences contain only temperature/token/idle settings. Clipboard data, prompts, output, model paths, Share-Ready mappings, and Chain Copy items are not persisted. Share-Ready mappings and chain items are cleared on quit.
-- Clipboard contents are not logged. ClipGum also installs a no-op llama.cpp logger to avoid third-party stderr prompt/output leakage.
+- MLX uses `.directory`, not a repository downloader. The main app's narrowly scoped network-client entitlement is used only by explicit Sparkle checks and the separate explicit verified-model downloader; clipboard, inference, transformation, diagnostics, and paste paths contain no network call sites.
+- The sandbox adds user-selected read-only file access and the two Sparkle InstallerLauncher Mach lookups required by that network-capable process model. Sparkle's downloader XPC is disabled. There is no persistent bookmark entitlement.
+- Preferences contain only temperature/token/idle, update-channel/frequency/opt-in, diagnostics-opt-in, and onboarding-completion settings. Clipboard data, prompts, output, model paths, Share-Ready mappings, diagnostic samples, and Chain Copy items are not persisted. Share-Ready mappings and chain items are cleared on quit.
+- Clipboard contents are not logged. ClipGum also installs a no-op llama.cpp logger to avoid third-party stderr prompt/output leakage. Diagnostics use closed non-content enums and a second payload schema gate; no crash reporter or telemetry endpoint is registered.
 - Dismissal cancels the consumer task and releases the palette's original/generated text and hosting content.
 
 ## Deterministic rules
@@ -373,7 +411,7 @@ This is **best-effort risk reduction, not DLP or guaranteed anonymization**. Unk
 ```text
 Sources/ClipGum/
 ├── App/
-│   ├── ClipGumApp.swift              # SwiftUI entry and inference settings scene
+│   ├── ClipGumApp.swift              # SwiftUI entry and Phase 5 settings scene
 │   ├── AppDelegate.swift             # Explicit reads, action routing, fallback, model selection
 │   └── MenuBarController.swift       # One NSStatusItem and model/RAM status
 ├── Core/
@@ -382,6 +420,10 @@ Sources/ClipGum/
 │   ├── ChainCopy/                    # Opt-in volatile accumulation, selection, ordering, joining
 │   ├── Hotkeys/GlobalHotKey.swift    # Carbon ⌘⇧V registration and teardown
 │   ├── Paste/PasteService.swift      # Explicit copy, Accessibility check, ⌘V posting
+│   ├── ModelDownload/                # HTTPS manifests, bounded transport, SHA-256, atomic install
+│   ├── Permissions/                  # Accessibility checks and permission recovery
+│   ├── Security/                     # Shared strict-HTTPS URL policy
+│   ├── Updater/                      # Sparkle controller, channels, signed-feed enforcement
 │   └── Inference/
 │       ├── InferenceEngine.swift     # Required protocol, resource config, safe errors
 │       ├── LocalInferenceEngine.swift# Serialization, status, OOM and idle offload
@@ -398,6 +440,7 @@ Sources/ClipGum/
 │   │   ├── Bash/                     # Non-executing lexer, risk rules, and token report
 │   │   ├── Logs/                     # ANSI/frame/timestamp/IP cleanup
 │   │   └── DeveloperContentClassifier.swift
+│   ├── Diagnostics/                  # Opt-in closed-schema counters, latency, RAM, error codes
 │   ├── Office/
 │   │   ├── RichText/                 # Bounded scanner, semantic cleaner, PDF repair, AppKit RTF
 │   │   ├── Table/                    # HTML/delimited/ASCII extraction and deterministic formatters
@@ -413,11 +456,14 @@ Sources/ClipGum/
 │       └── JSONFormattingService.swift
 └── UI/
     ├── Diff/InlineDiff.swift         # Exact token/whitespace inline differences
-    ├── Palette/                      # Streaming preview, developer controls, danger badge, Chain Copy
-    └── Settings/                     # Resource-only preferences and settings UI
+    ├── Palette/                      # Streaming preview, offline shield, danger badge, Chain Copy
+    ├── Onboarding/                   # First-run trigger, permissions, readiness, verified download
+    └── Settings/                     # Inference, Updates, Privacy & Audit, Licenses/SBOM
 
-Tests/ClipGumTests/                   # 197 XCTest cases; no model weights required
+Tests/ClipGumTests/                   # 229 XCTest cases; no model weights required
 Resources/                            # Info.plist and minimal sandbox entitlements
+Build/                                # Signing/notary/DMG/Cask/SBOM/appcast and validation scripts
+BETA_TESTING.md                       # Beta privacy guarantees, feedback, and test protocols
 Scripts/package_app.sh                # Repeatable local .app packaging
 ```
 
@@ -425,7 +471,7 @@ Delayed work consists of the one-shot paste focus handoff and one-shot idle offl
 
 ## Tests and manual verification
 
-The **197 XCTest cases** cover:
+The **229 XCTest cases** cover:
 
 - All Phase 1 URL, secret, pasteboard-marker, access-policy, and explicit-paste behavior.
 - Prompt contents/non-interpolation, configuration clamps, local identifiers, and safe OOM classification.
@@ -441,6 +487,7 @@ The **197 XCTest cases** cover:
 - HTML/Excel/CSV/semicolon/Markdown/aligned-ASCII tables, exact RFC 4180 quoting, decimal commas, embedded quotes/newlines, deterministic output, and fail-closed spans/schemas.
 - Number/percentage/date/currency/formula invariants, named English/French dates, discrepancy blocking, Office prompts, cleaned-only inference input, app profiles, HUD table options, and rich payload/plain-preview agreement.
 - Multi-flavor one-item pasteboard reads/writes and Accessibility-denied rich-paste non-destructiveness.
+- Fail-closed update metadata, Ed25519 key shape, stable/beta channels, default-off preferences, strict HTTPS, diagnostics schema/percentiles/clearing, model-manifest/RAM/byte/SHA/atomic-install behavior, onboarding/resources, exact entitlement allowlists, and zero-request copy/transform/paste isolation.
 
 Before a release, manually verify on each supported macOS line and Apple Silicon target:
 
@@ -452,6 +499,7 @@ Before a release, manually verify on each supported macOS line and Apple Silicon
 6. Paste targets the app that was frontmost when ClipGum was invoked.
 7. VoiceOver can reach Before/After text, validation messages, action picker, developer options, danger findings, Chain Copy controls, and every export/cancel action.
 8. Complete the model evaluation checklist above for each shipping model/quantization.
+9. Complete the notarized fresh-profile install, permission-recovery, offline-cycle, Clear All Data, stable/beta, and tampered-update protocols in `Build/FRESH_PROFILE.md`; record only observed outcomes.
 
 ## Open-source implementation references and credits
 
@@ -470,6 +518,7 @@ References are pinned to inspected revisions. ClipGum's coordinator, validation,
 | Shell token/operator explanation | [explainshell `matcher.py`](https://github.com/idank/explainshell/blob/827ebe38da9822a10e89946551e377330a9de35e/explainshell/matcher.py), [explainshell `models.py`](https://github.com/idank/explainshell/blob/827ebe38da9822a10e89946551e377330a9de35e/explainshell/models.py) | Studied token/source-span grouping, operators/redirections, option matching, and explicit unknown-span behavior as an architecture reference. No bashlex, man-page database, subprocess, or GPL source is incorporated; ClipGum's lexer and deterministic safety layer are original Swift. |
 | Semantic HTML cleaning and tokenization | [SwiftSoup `Cleaner.swift`](https://github.com/scinfu/SwiftSoup/blob/e7f85f4d3dd91ca9a1e94d3328aa1ed5120a8c0f/Sources/Cleaner.swift), [SwiftSoup `Tokeniser.swift`](https://github.com/scinfu/SwiftSoup/blob/e7f85f4d3dd91ca9a1e94d3328aa1ed5120a8c0f/Sources/Tokeniser.swift), [SwiftSoup `Entities.swift`](https://github.com/scinfu/SwiftSoup/blob/e7f85f4d3dd91ca9a1e94d3328aa1ed5120a8c0f/Sources/Entities.swift) | Studied allowlist element/attribute copying, token boundaries, entity handling, and whitespace treatment. ClipGum uses an original bounded 4 MiB scanner/semantic serializer with no browser execution or SwiftSoup dependency; regex tag extraction is not used. |
 | Multi-flavor pasteboard items | [Maccy `Clipboard.swift`](https://github.com/p0deje/Maccy/blob/54fb9f00b828a4ec367e706c0e276df90febe76a/Maccy/Clipboard.swift), [Clipy `PasteboardContent.swift`](https://github.com/Clipy/Clipy/blob/9bfd74baab113db41c9dfd45b4b9bbfef24d2752/Clipy/Sources/Models/PasteboardContent.swift) | Studied explicit flavor data capture and `NSPasteboardItem` reconstruction. ClipGum reads only after its marker gate and writes plain/HTML/RTF as one item; no history timer, multi-item grouping, or automatic paste was adopted. |
+| Signed updater and sandbox process model | [Sparkle 2.10.0 `SPUUpdaterDelegate.h`](https://github.com/sparkle-project/Sparkle/blob/eef1a539a373c1f1a320624b1130fc5de7b2e100/Sparkle/SPUUpdaterDelegate.h), [Sparkle `SPUUpdater.m`](https://github.com/sparkle-project/Sparkle/blob/eef1a539a373c1f1a320624b1130fc5de7b2e100/Sparkle/SPUUpdater.m), [Maccy `SoftwareUpdater.swift`](https://github.com/p0deje/Maccy/blob/54fb9f00b828a4ec367e706c0e276df90febe76a/Maccy/SoftwareUpdater.swift) | Studied retained standard-controller/delegate patterns, KVO readiness, channels, EdDSA, signed-feed policy, and InstallerLauncher entitlements. ClipGum adds strict startup validation, no profile parameters, default-off checks, and disables downloader XPC because explicit model acquisition requires main-app network client. |
 | Status item and marker filtering | [Maccy `AppDelegate.swift`](https://github.com/p0deje/Maccy/blob/54fb9f00b828a4ec367e706c0e276df90febe76a/Maccy/AppDelegate.swift#L11-L22), [Maccy `Clipboard.swift`](https://github.com/p0deje/Maccy/blob/54fb9f00b828a4ec367e706c0e276df90febe76a/Maccy/Clipboard.swift#L20-L31) | Strong `NSStatusItem` ownership and checking ignored types before content. Maccy's history timer was **not** adopted. No `accessBehavior` implementation was found at this revision; that gate comes from Apple. |
 | Status-item/panel lifecycle comparison | [Ice `ControlItem.swift`](https://github.com/jordanbaird/Ice/blob/11edd39115f3f43a83ae114b5348df6a0e1741cf/Ice/MenuBar/ControlItem/ControlItem.swift#L43-L135), [Ice `IceBar.swift`](https://github.com/jordanbaird/Ice/blob/11edd39115f3f43a83ae114b5348df6a0e1741cf/Ice/UI/IceBar/IceBar.swift#L11-L42) | Compared explicit AppKit ownership and floating-panel configuration. Ice's larger machinery and GPL source were not copied. |
 | Global hotkey | [AltTab `KeyboardEvents.swift`](https://github.com/lwouis/alt-tab-macos/blob/c500294bdb01186011a5c64a412b04cef9931bef/src/events/KeyboardEvents.swift#L173-L200), [KeyboardShortcuts `HotKey.swift`](https://github.com/sindresorhus/KeyboardShortcuts/blob/772133d9dbe800fdac0473226822994c5c162c58/Sources/KeyboardShortcuts/HotKey.swift#L269-L283) | `RegisterEventHotKey`, event IDs, handler installation, and symmetric unregistration. No global keyboard monitor or CGEvent tap is used for shortcut detection. |
@@ -481,4 +530,4 @@ References are pinned to inspected revisions. ClipGum's coordinator, validation,
 
 **Source-availability note:** Shottr and Sindre Sorhus's Pure Paste remain product benchmarks, but no verifiable public implementation repository for them was used. Raycast extension APIs are not treated as native `NSPanel` source. DevUtils' inspected old snapshot supplied no reusable inference, URL-cleaning, or secret-scrubbing implementation. Concrete low-level choices above come from linked public code and Apple documentation.
 
-MLX Swift, MLX Swift LM/Examples, llama.cpp, llama.swift, SwiftLlama, SwiftSoup, Raycast Extensions, Maccy, Clipy, Boop, KeyboardShortcuts, Gitleaks, and Clipboard Cleaner are MIT-licensed at the inspected revisions. quicktype is Apache-2.0. Ice, AltTab, and GPL-3.0 explainshell were architecture references only; no explainshell source is incorporated. Each upstream project retains its own license and copyright.
+MLX Swift, MLX Swift LM/Examples, llama.cpp, llama.swift, Sparkle, SwiftLlama, SwiftSoup, Raycast Extensions, Maccy, Clipy, Boop, KeyboardShortcuts, Gitleaks, and Clipboard Cleaner are MIT-licensed at the inspected revisions. quicktype is Apache-2.0. Ice, AltTab, and GPL-3.0 explainshell were architecture references only; no explainshell source is incorporated. Each upstream project retains its own license and copyright.

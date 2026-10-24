@@ -17,6 +17,17 @@ jobs:
         run: |
           swift package resolve
           cat Package.resolved
+      - name: Validate release scripts and SBOM
+        shell: bash
+        run: |
+          set -euo pipefail
+          for script in Build/*.sh Scripts/package_app.sh; do bash -n "$script"; done
+          python3 -m json.tool Build/Models/manifest.schema.json >/dev/null
+          python3 -m json.tool Build/SBOM.json >/dev/null
+          python3 Build/generate_sbom.py --output /tmp/ClipGum-SBOM.json
+          python3 -m json.tool /tmp/ClipGum-SBOM.json >/dev/null
+      - name: Verify Sparkle rejects a tampered archive
+        run: ./Build/test_sparkle_tamper.sh
       - name: Run unit tests
         shell: bash
         run: |
@@ -55,3 +66,5 @@ jobs:
                 done
           fi
           exit "$status"
+      - name: Validate development distribution policy
+        run: ./Build/validate_distribution.sh build/ClipGum.app --development

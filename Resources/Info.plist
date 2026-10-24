@@ -26,5 +26,38 @@
     <true/>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
+
+    <!-- Public release metadata is injected into the built copy only. Blank
+         development values fail closed and UpdateManager does not start. -->
+    <key>SUFeedURL</key>
+    <string></string>
+    <key>SUPublicEDKey</key>
+    <string></string>
+    <key>SURequireSignedFeed</key>
+    <true/>
+    <key>SUVerifyUpdateBeforeExtraction</key>
+    <true/>
+    <key>SUEnableInstallerLauncherService</key>
+    <true/>
+    <key>SUEnableDownloaderService</key>
+    <false/>
+    <key>SUEnableAutomaticChecks</key>
+    <true/>
+    <key>SUAllowsAutomaticUpdates</key>
+    <false/>
+    <key>SUAutomaticallyUpdate</key>
+    <false/>
+    <key>SUPromptUserOnFirstLaunch</key>
+    <false/>
+    <key>SUEnableSystemProfiling</key>
+    <false/>
+    <key>SUSendProfileInfo</key>
+    <false/>
+    <key>SUEnableJavaScript</key>
+    <false/>
+    <key>SUAllowedURLSchemes</key>
+    <array>
+        <string>https</string>
+    </array>
 </dict>
 </plist>

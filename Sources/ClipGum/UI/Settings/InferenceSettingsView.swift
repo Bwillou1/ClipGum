@@ -31,7 +31,7 @@ struct InferenceSettingsView: View {
             }
 
             Section("Privacy and model loading") {
-                Text("Choose an MLX model folder or GGUF file from the ClipGum menu. Models are local-only and are not downloaded by the app.")
+                Text("Choose an MLX model folder or GGUF file from the ClipGum menu, or use the first-run verified-model downloader. Inference is local-only; model downloads occur only after explicit selection and verification metadata review.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                 Text("Changing these settings does not read the clipboard. Clipboard text is never saved in preferences.")
@@ -41,6 +41,5 @@ struct InferenceSettingsView: View {
         }
         .formStyle(.grouped)
         .padding(18)
-        .frame(width: 540, height: 350)
     }
 }

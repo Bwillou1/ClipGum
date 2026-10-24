@@ -67,6 +67,14 @@ struct PaletteView: View {
                         .background(Color.red)
                         .clipShape(Capsule())
                 }
+                Label("Offline / Local Only", systemImage: "checkmark.shield.fill")
+                    .font(.caption.bold())
+                    .foregroundStyle(.green)
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 5)
+                    .background(Color.green.opacity(0.12))
+                    .clipShape(Capsule())
+                    .help("Inference is local. Only explicit update checks or model downloads use the network.")
                 statusBadge(preview)
             }
 

@@ -4,9 +4,20 @@
 <dict>
     <key>com.apple.security.app-sandbox</key>
     <true/>
-    <!-- Read only model files/folders explicitly chosen through NSOpenPanel.
-         No network, automation, camera, microphone, or persistent bookmark entitlement. -->
     <key>com.apple.security.files.user-selected.read-only</key>
     <true/>
+
+    <!-- Required only for explicit Sparkle checks and verified model downloads.
+         Clipboard, inference, and paste services contain no network clients. -->
+    <key>com.apple.security.network.client</key>
+    <true/>
+
+    <!-- Sparkle's InstallerLauncher service; its downloader XPC stays disabled
+         because this main process has the network-client entitlement above. -->
+    <key>com.apple.security.temporary-exception.mach-lookup.global-name</key>
+    <array>
+        <string>com.clipgum.ClipGum-spks</string>
+        <string>com.clipgum.ClipGum-spki</string>
+    </array>
 </dict>
 </plist>
