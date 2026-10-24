@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test-and-package:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select an SDK with NSPasteboard.accessBehavior
+        run: |
+          sudo xcode-select -s /Applications/Xcode_16.3.app/Contents/Developer
+          xcodebuild -version
+      - name: Resolve pinned dependencies
+        run: |
+          swift package resolve
+          cat Package.resolved
+      - name: Run unit tests
+        run: swift test
+      - name: Validate packaging script
+        run: bash -n Scripts/package_app.sh
+      - name: Build app bundle
+        run: ./Scripts/package_app.sh

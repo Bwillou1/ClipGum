@@ -1,0 +1,108 @@
+import AppKit
+import ApplicationServices
+import Carbon.HIToolbox
+import Foundation
+
+enum PasteServiceError: LocalizedError {
+    case accessibilityRequired
+
+    var errorDescription: String? {
+        switch self {
+        case .accessibilityRequired:
+            return "Accessibility permission is required to send ⌘V. The pasteboard was not changed."
+        }
+    }
+}
+
+/// Explicit copy/paste execution. Nothing in this type runs on a schedule or
+/// observes the pasteboard; the only delayed work is a one-shot focus handoff.
+@MainActor
+final class PasteService {
+    private let pasteboard: SystemPasteboard
+    private let accessibilityTrusted: (Bool) -> Bool
+    private let applicationActivator: (NSRunningApplication?) -> Void
+    private let keystrokePoster: () -> Void
+    private let focusSettleDelay: TimeInterval
+
+    init(
+        pasteboard: SystemPasteboard,
+        accessibilityTrusted: @escaping (Bool) -> Bool = PasteService.checkAccessibility,
+        applicationActivator: @escaping (NSRunningApplication?) -> Void = PasteService.activate,
+        keystrokePoster: @escaping () -> Void = PasteService.postCommandV,
+        focusSettleDelay: TimeInterval = 0.05
+    ) {
+        self.pasteboard = pasteboard
+        self.accessibilityTrusted = accessibilityTrusted
+        self.applicationActivator = applicationActivator
+        self.keystrokePoster = keystrokePoster
+        self.focusSettleDelay = focusSettleDelay
+    }
+
+    func copyResult(_ text: String) throws {
+        try pasteboard.writeTextForExplicitUserAction(text)
+    }
+
+    func paste(_ text: String, to targetApplication: NSRunningApplication?) throws {
+        // Check before clearing the pasteboard: denial is non-destructive.
+        guard accessibilityTrusted(true) else {
+            throw PasteServiceError.accessibilityRequired
+        }
+
+        try pasteboard.writeTextForExplicitUserAction(text)
+        applicationActivator(targetApplication)
+
+        // This is not polling. It yields one focus handoff before the explicit
+        // paste keystroke, matching the approach used by Maccy and Clipy.
+        DispatchQueue.main.asyncAfter(deadline: .now() + focusSettleDelay) {
+            self.keystrokePoster()
+        }
+    }
+
+    private static func checkAccessibility(prompt: Bool) -> Bool {
+        let key = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
+        if AXIsProcessTrustedWithOptions([key: false] as CFDictionary) {
+            return true
+        }
+
+        // Clipy's production fallback: some ad-hoc signed builds can report
+        // false even when a focused-application AX query is already permitted.
+        var value: CFTypeRef?
+        let queryResult = AXUIElementCopyAttributeValue(
+            AXUIElementCreateSystemWide(),
+            kAXFocusedApplicationAttribute as CFString,
+            &value
+        )
+        if queryResult == .success || queryResult == .noValue {
+            return true
+        }
+
+        guard prompt else {
+            return false
+        }
+        return AXIsProcessTrustedWithOptions([key: true] as CFDictionary)
+    }
+
+    private static func activate(_ application: NSRunningApplication?) {
+        if let application {
+            _ = application.activate(options: [.activateAllWindows, .activateIgnoringOtherApps])
+        } else {
+            NSApp.hide(nil)
+        }
+    }
+
+    private static func postCommandV() {
+        let source = CGEventSource(stateID: .combinedSessionState)
+        source?.setLocalEventsFilterDuringSuppressionState(
+            [.permitLocalMouseEvents, .permitSystemDefinedEvents],
+            state: .eventSuppressionStateSuppressionInterval
+        )
+
+        let keyCode = CGKeyCode(kVK_ANSI_V)
+        let keyDown = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: true)
+        let keyUp = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: false)
+        keyDown?.flags = .maskCommand
+        keyUp?.flags = .maskCommand
+        keyDown?.post(tap: .cgSessionEventTap)
+        keyUp?.post(tap: .cgSessionEventTap)
+    }
+}

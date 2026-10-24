@@ -1,0 +1,325 @@
+import SwiftUI
+
+@MainActor
+struct PaletteView: View {
+    @ObservedObject var model: PaletteModel
+    let onAction: (PaletteAction) -> Void
+
+    private enum DiffPerspective {
+        case before
+        case after
+        case inline
+    }
+
+    var body: some View {
+        Group {
+            switch model.content {
+            case .preview(let preview):
+                previewView(preview)
+            case .message(let message):
+                messageView(message)
+            }
+        }
+        .padding(22)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(.regularMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .strokeBorder(.white.opacity(0.16), lineWidth: 1)
+        }
+        .padding(1)
+    }
+
+    private func previewView(_ preview: PalettePreview) -> some View {
+        let diff = InlineDiff.segments(before: preview.original, after: preview.output)
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
+                Image(systemName: preview.isStreaming ? "sparkles" : "checkmark.shield.fill")
+                    .font(.title2)
+                    .foregroundStyle(.tint)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Smart Paste")
+                        .font(.headline)
+                    Text("On-demand · Local only · Original kept in memory")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                statusBadge(preview)
+            }
+
+            HStack(spacing: 9) {
+                Picker("Action", selection: $model.selectedAction) {
+                    ForEach(SmartPasteAction.allCases) { action in
+                        Text(action.title).tag(action)
+                    }
+                }
+                .frame(maxWidth: 360)
+                .disabled(preview.isStreaming)
+
+                Button(preview.isStreaming ? "Generating…" : "Run") {
+                    onAction(.runTransformation(model.selectedAction))
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(preview.isStreaming)
+
+                if preview.phase == .completed, !preview.canExport {
+                    Button("Use Deterministic") {
+                        onAction(.restoreDeterministic)
+                    }
+                }
+
+                Spacer()
+                Picker("Diff mode", selection: $model.diffMode) {
+                    ForEach(PaletteDiffMode.allCases) { mode in
+                        Text(mode.title).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 250)
+            }
+            .controlSize(.small)
+
+            if preview.isStreaming {
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text("Local token stream · \(preview.streamedChunks) chunks")
+                        .font(.caption.weight(.medium))
+                    Spacer()
+                    Text("Provisional output — Copy/Paste disabled")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.vertical, 2)
+            }
+
+            if let errorMessage = preview.errorMessage {
+                Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            validationView(preview)
+
+            Group {
+                switch model.diffMode {
+                case .sideBySide:
+                    HStack(spacing: 12) {
+                        diffPane(title: "Before", diff: diff, perspective: .before)
+                        diffPane(title: "After", diff: diff, perspective: .after)
+                    }
+                case .inline:
+                    diffPane(
+                        title: "Inline · red strikethrough removed · green underline added",
+                        diff: diff,
+                        perspective: .inline
+                    )
+                }
+            }
+            .frame(maxHeight: .infinity)
+
+            HStack(spacing: 8) {
+                summaryItem(
+                    value: preview.deterministicBaseline.removedTrackingParameters,
+                    singular: "tracking parameter",
+                    plural: "tracking parameters"
+                )
+                summaryItem(
+                    value: preview.deterministicBaseline.redactedSecrets,
+                    singular: "potential secret",
+                    plural: "potential secrets"
+                )
+                Spacer()
+                Text("No model output is approved before validation.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+
+            Text("The pasteboard changes only after you choose Copy or Paste.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            HStack(spacing: 10) {
+                Button("Cancel", role: .cancel) {
+                    onAction(.cancel)
+                }
+                Spacer()
+                Button("Paste Original") {
+                    onAction(.pasteOriginal)
+                }
+                Button("Copy Result") {
+                    onAction(.copyResult)
+                }
+                .disabled(!preview.canExport)
+                Button("Paste Cleaned") {
+                    onAction(.pasteCleaned)
+                }
+                .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.defaultAction)
+                .disabled(!preview.canExport)
+            }
+            .controlSize(.large)
+        }
+    }
+
+    private func statusBadge(_ preview: PalettePreview) -> some View {
+        Group {
+            if preview.isStreaming {
+                Label("Streaming", systemImage: "dot.radiowaves.left.and.right")
+                    .foregroundStyle(.tint)
+            } else if preview.phase == .completed, preview.validation?.canExport == false {
+                Label("Blocked", systemImage: "xmark.shield.fill")
+                    .foregroundStyle(.red)
+            } else if preview.phase == .completed, preview.validation?.warnings.isEmpty == false {
+                Label("Review", systemImage: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+            } else if preview.original != preview.output {
+                Label("Changed", systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+            } else {
+                Text("No matching changes")
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .font(.caption.weight(.semibold))
+    }
+
+    @ViewBuilder
+    private func validationView(_ preview: PalettePreview) -> some View {
+        if preview.phase == .completed, let validation = preview.validation {
+            VStack(alignment: .leading, spacing: 3) {
+                ForEach(Array(validation.issues.prefix(3).enumerated()), id: \.offset) { _, issue in
+                    Label(
+                        issue.message,
+                        systemImage: issue.severity == .error
+                            ? "xmark.octagon.fill"
+                            : "exclamationmark.triangle.fill"
+                    )
+                    .foregroundStyle(issue.severity == .error ? .red : .orange)
+                }
+                if validation.issues.isEmpty {
+                    Label(
+                        preview.action == .tableToCSV
+                            ? "CSV schema and every source cell verified."
+                            : "Output checks passed; semantic review is still required.",
+                        systemImage: "checkmark.circle"
+                    )
+                    .foregroundStyle(.green)
+                }
+            }
+            .font(.caption)
+            .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func diffPane(
+        title: String,
+        diff: [InlineDiffSegment],
+        perspective: DiffPerspective
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text(title.uppercased())
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+            ScrollView {
+                styledDiff(diff, perspective: perspective)
+                    .font(.callout.monospaced())
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(10)
+            }
+            .background(Color(nsColor: .textBackgroundColor))
+            .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .strokeBorder(.primary.opacity(0.10), lineWidth: 1)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private func styledDiff(
+        _ segments: [InlineDiffSegment],
+        perspective: DiffPerspective
+    ) -> Text {
+        var result = Text("")
+        for segment in segments {
+            switch (perspective, segment.kind) {
+            case (_, .unchanged):
+                result = result + Text(segment.text).foregroundColor(.primary)
+            case (.before, .insertion):
+                continue
+            case (.after, .removal):
+                continue
+            case (_, .removal):
+                result = result + Text(segment.text)
+                    .foregroundColor(.red)
+                    .strikethrough(true, color: .red)
+            case (_, .insertion):
+                result = result + Text(segment.text)
+                    .foregroundColor(.green)
+                    .underline(true, color: .green)
+            }
+        }
+        return result
+    }
+
+    private func summaryItem(value: Int, singular: String, plural: String) -> some View {
+        Text("\(value) \(value == 1 ? singular : plural)")
+            .font(.caption)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(Color.secondary.opacity(0.12))
+            .clipShape(Capsule())
+    }
+
+    private func messageView(_ message: PaletteMessage) -> some View {
+        VStack(alignment: .leading, spacing: 17) {
+            HStack(spacing: 12) {
+                Image(systemName: message.systemImage)
+                    .font(.system(size: 30))
+                    .foregroundStyle(.tint)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(message.title)
+                        .font(.title3.weight(.semibold))
+                    Text("Clipboard left untouched")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Text(message.detail)
+                .font(.body)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Spacer(minLength: 0)
+
+            HStack {
+                if message.showsPrivacySettings {
+                    Button("Cancel", role: .cancel) {
+                        onAction(.cancel)
+                    }
+                    Spacer()
+                    Button("Open Privacy Settings") {
+                        onAction(.openPasteboardPrivacySettings)
+                    }
+                    .buttonStyle(.borderedProminent)
+                } else {
+                    Spacer()
+                    Button("Close") {
+                        onAction(.cancel)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .keyboardShortcut(.defaultAction)
+                }
+            }
+            .controlSize(.large)
+        }
+    }
+}
