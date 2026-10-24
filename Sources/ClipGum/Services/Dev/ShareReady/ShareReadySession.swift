@@ -73,18 +73,18 @@ final class ShareReadySession: @unchecked Sendable {
 
         var output = input
         var counts: [ShareReadyCategory: Int] = [:]
-        apply(privateKey, category: .credential, to: &output, counts: &counts)
-        apply(environmentAssignment, category: .environmentValue, groups: [1, 2, 3], to: &output, counts: &counts)
-        apply(basicAuthentication, category: .credential, groups: [2], to: &output, counts: &counts)
-        apply(awsAccessKey, category: .credential, to: &output, counts: &counts)
-        apply(bearerToken, category: .credential, groups: [1], to: &output, counts: &counts)
-        apply(userDirectory, category: .userDirectory, to: &output, counts: &counts)
-        apply(ipv4Candidate, category: .privateIP, to: &output, counts: &counts) {
+        apply(Self.privateKey, category: .credential, to: &output, counts: &counts)
+        apply(Self.environmentAssignment, category: .environmentValue, groups: [1, 2, 3], to: &output, counts: &counts)
+        apply(Self.basicAuthentication, category: .credential, groups: [2], to: &output, counts: &counts)
+        apply(Self.awsAccessKey, category: .credential, to: &output, counts: &counts)
+        apply(Self.bearerToken, category: .credential, groups: [1], to: &output, counts: &counts)
+        apply(Self.userDirectory, category: .userDirectory, to: &output, counts: &counts)
+        apply(Self.ipv4Candidate, category: .privateIP, to: &output, counts: &counts) {
             Self.isRFC1918Private($0)
         }
-        apply(localhostIPv6, category: .localhost, to: &output, counts: &counts)
-        apply(localhost, category: .localhost, to: &output, counts: &counts)
-        apply(internalEndpoint, category: .internalEndpoint, to: &output, counts: &counts)
+        apply(Self.localhostIPv6, category: .localhost, to: &output, counts: &counts)
+        apply(Self.localhost, category: .localhost, to: &output, counts: &counts)
+        apply(Self.internalEndpoint, category: .internalEndpoint, to: &output, counts: &counts)
 
         return ShareReadyResult(
             output: output,
