@@ -57,7 +57,7 @@ struct JSONParser {
     }
 
     @discardableResult
-    private func advance() -> UnicodeScalar? {
+    private mutating func advance() -> UnicodeScalar? {
         guard !isAtEnd else { return nil }
         let scalar = scalars[index]
         index += 1
@@ -76,7 +76,7 @@ struct JSONParser {
         return scalar
     }
 
-    private func consumeWhitespace() {
+    private mutating func consumeWhitespace() {
         while let scalar = current, scalar == " " || scalar == "\t"
             || scalar == "\n" || scalar == "\r"
         {
@@ -89,7 +89,7 @@ struct JSONParser {
         return scalars[index]
     }
 
-    private func parseValue(depth: Int) throws -> JSONValue {
+    private mutating func parseValue(depth: Int) throws -> JSONValue {
         guard depth <= Self.maximumDepth else {
             throw error("Nesting exceeds the 256-level safety boundary.")
         }
@@ -116,7 +116,7 @@ struct JSONParser {
         }
     }
 
-    private func parseObject(depth: Int) throws -> JSONValue {
+    private mutating func parseObject(depth: Int) throws -> JSONValue {
         advance() // {
         consumeWhitespace()
         var members: [JSONMember] = []
@@ -153,7 +153,7 @@ struct JSONParser {
         }
     }
 
-    private func parseArray(depth: Int) throws -> JSONValue {
+    private mutating func parseArray(depth: Int) throws -> JSONValue {
         advance() // [
         consumeWhitespace()
         var values: [JSONValue] = []
@@ -179,7 +179,7 @@ struct JSONParser {
         }
     }
 
-    private func parseString() throws -> String {
+    private mutating func parseString() throws -> String {
         guard current == "\"" else {
             throw error("Expected a string.")
         }
@@ -237,7 +237,7 @@ struct JSONParser {
         throw error("Unterminated string.")
     }
 
-    private func parseUnicodeEscape() throws -> String {
+    private mutating func parseUnicodeEscape() throws -> String {
         let first = try parseFourHexDigits()
         if (0xD800...0xDBFF).contains(first) {
             guard current == "\\" else {
@@ -264,7 +264,7 @@ struct JSONParser {
         return String(scalar)
     }
 
-    private func parseFourHexDigits() throws -> UInt32 {
+    private mutating func parseFourHexDigits() throws -> UInt32 {
         var value: UInt32 = 0
         for _ in 0..<4 {
             guard let scalar = current, let digit = scalar.hexDigitValue else {
@@ -276,7 +276,7 @@ struct JSONParser {
         return value
     }
 
-    private func consumeLiteral(_ literal: String) throws {
+    private mutating func consumeLiteral(_ literal: String) throws {
         for expected in literal.unicodeScalars {
             guard current == expected else {
                 throw error("Invalid literal; expected '\(literal)'.")
@@ -285,7 +285,7 @@ struct JSONParser {
         }
     }
 
-    private func parseNumber() throws -> String {
+    private mutating func parseNumber() throws -> String {
         let start = index
         if current == "-" {
             advance()
@@ -321,7 +321,7 @@ struct JSONParser {
         return scalars[start..<index].map(String.init).joined()
     }
 
-    private func consumeDigits() {
+    private mutating func consumeDigits() {
         while let scalar = current, ("0"..."9").contains(scalar) {
             advance()
         }
