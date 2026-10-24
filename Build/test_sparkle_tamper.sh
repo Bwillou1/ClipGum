@@ -27,8 +27,8 @@ chmod 600 "$KEY"
 printf 'ClipGum signed-update integration fixture\n' >"$ARCHIVE"
 cp "$ARCHIVE" "$TAMPERED"
 
-if ! SIGNATURE="$("$SIGN_UPDATE" --ed-key-file "$KEY" -p "$ARCHIVE")"; then
-  printf '::error::Sparkle could not sign the intact fixture with the supported 32-byte test seed.\n'
+if ! SIGNATURE="$("$SIGN_UPDATE" --ed-key-file "$KEY" -p "$ARCHIVE" 2>&1)"; then
+  printf '::error::Sparkle could not sign the intact fixture with the supported 32-byte test seed. Output: %s\n' "$SIGNATURE"
   exit 11
 fi
 if [[ ! "$SIGNATURE" =~ ^[A-Za-z0-9+/]+={0,2}$ ]]; then
