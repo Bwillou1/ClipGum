@@ -157,8 +157,13 @@ actor LocalInferenceEngine: ManagedInferenceEngine {
                 }
                 await self.finishGeneration(generationID, failure: failure)
             }
-            continuation.onTermination = { _ in
-                task.cancel()
+            continuation.onTermination = { termination in
+                // `.finished` is not consumer cancellation. Do not cancel the
+                // task before it has finalized status, configuration, or OOM
+                // teardown; a cancelled/deallocated consumer still stops decode.
+                if case .cancelled = termination {
+                    task.cancel()
+                }
             }
         }
     }

@@ -183,7 +183,10 @@ final class SmartPastePipelineTests: XCTestCase {
             String(repeating: "a", count: 10_000),
             String(repeating: "b", count: 10_000)
         ])
-        let pipeline = SmartPastePipeline(engine: engine)
+        let pipeline = SmartPastePipeline(
+            engine: engine,
+            configuration: InferenceConfiguration(maximumInputUTF8Bytes: 1_024)
+        )
         let stream = try await pipeline.inferenceStream(
             action: .correction,
             input: "short",
