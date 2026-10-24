@@ -71,7 +71,8 @@ final class OfficeRichTextTests: XCTestCase {
             range: NSRange(location: 0, length: 4)
         )
         let regular = NSFont.systemFont(ofSize: 14)
-        let italic = NSFontManager.shared.convert(regular, toHaveTrait: .italicFont)
+        let italicDescriptor = regular.fontDescriptor.withSymbolicTraits(.italic)
+        let italic = try XCTUnwrap(NSFont(descriptor: italicDescriptor, size: 14))
         source.addAttribute(.font, value: italic, range: NSRange(location: 5, length: 6))
         source.addAttribute(
             .link,
