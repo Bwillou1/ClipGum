@@ -85,6 +85,11 @@ struct SmartPastePipeline {
         }
 
         let baseline = cleaner.clean(input)
+        // C chat templates use NUL-terminated strings. Reject rather than
+        // silently losing a suffix; deterministic actions remain available.
+        guard !baseline.cleaned.unicodeScalars.contains(where: { $0.value == 0 }) else {
+            throw InferenceEngineError.invalidInput
+        }
         let template = PromptTemplate(action: action)
         let boundedTokens = min(
             InferenceConfiguration.absoluteOutputTokenLimit,

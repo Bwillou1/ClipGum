@@ -91,6 +91,7 @@ enum InferenceEngineError: LocalizedError, Equatable {
     case engineBusy
     case unsupportedArchitecture
     case inputTooLarge
+    case invalidInput
     case contextLimit
     case outputTooLarge
     case outOfMemory
@@ -112,6 +113,8 @@ enum InferenceEngineError: LocalizedError, Equatable {
             return "Phase 2 local inference requires an Apple Silicon Mac."
         case .inputTooLarge:
             return "The input exceeds the local inference memory boundary. Shorten it and try again."
+        case .invalidInput:
+            return "The input contains an embedded NUL character that local prompt runtimes cannot preserve. Use a mechanical action or Paste Original."
         case .contextLimit:
             return "The prompt and requested output exceed the model context boundary."
         case .outputTooLarge:

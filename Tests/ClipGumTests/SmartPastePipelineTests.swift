@@ -94,6 +94,19 @@ final class SmartPastePipelineTests: XCTestCase {
         XCTAssertFalse(calls.first?.input.contains("Abcd1234efgh5678") == true)
         XCTAssertFalse(calls.first?.input.contains("utm_source") == true)
         XCTAssertTrue(calls.first?.prompt.contains("CORRECTION ONLY") == true)
+
+        do {
+            _ = try await pipeline.inferenceStream(
+                action: .correction,
+                input: "before\0after",
+                maxTokens: 100
+            )
+            XCTFail("Expected embedded NUL input to be rejected")
+        } catch {
+            XCTAssertEqual(error as? InferenceEngineError, .invalidInput)
+        }
+        let callsAfterRejection = await engine.transformCalls
+        XCTAssertEqual(callsAfterRejection.count, 1)
     }
 
     func testPipelineHardCapsRequestedTokens() async throws {

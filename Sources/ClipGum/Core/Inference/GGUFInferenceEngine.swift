@@ -66,6 +66,11 @@ actor GGUFInferenceEngine: ManagedInferenceEngine {
         guard prompt.utf8.count + input.utf8.count <= configuration.maximumInputUTF8Bytes else {
             throw InferenceEngineError.inputTooLarge
         }
+        guard !prompt.unicodeScalars.contains(where: { $0.value == 0 }),
+            !input.unicodeScalars.contains(where: { $0.value == 0 })
+        else {
+            throw InferenceEngineError.invalidInput
+        }
 
         let boundedTokens = configuration.boundedTokens(maxTokens)
         let maximumOutputBytes = configuration.maximumOutputUTF8Bytes
@@ -179,7 +184,9 @@ private final class LoadedGGUFModel {
         let runtime = LlamaBackendRuntime()
         var modelParameters = llama_model_default_params()
         modelParameters.n_gpu_layers = 999
-        modelParameters.use_mlock = false
+        // b10549 replaces use_mmap/use_mlock with an explicit load mode.
+        // mmap avoids wiring the whole model into non-pageable unified memory.
+        modelParameters.load_mode = LLAMA_LOAD_MODE_MMAP
 
         guard let model = llama_model_load_from_file(path, modelParameters) else {
             throw InferenceEngineError.invalidModel
