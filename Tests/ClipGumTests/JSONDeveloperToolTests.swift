@@ -84,11 +84,13 @@ final class JSONDeveloperToolTests: XCTestCase {
     }
 
     func testTypeScriptMergesArrayObjectsOptionalFieldsAndUnions() throws {
-        let input = #"[
-            {"id":1,"name":"a","nested":{"x":true}},
-            {"id":2,"nested":{"x":false},"extra":null},
-            {"id":"3","name":"b","nested":{"x":true}}
-        ]"#
+        let input = """
+            [
+                {"id":1,"name":"a","nested":{"x":true}},
+                {"id":2,"nested":{"x":false},"extra":null},
+                {"id":"3","name":"b","nested":{"x":true}}
+            ]
+            """
         let output = try TypeScriptGenerator().generate(input: input)
         XCTAssertEqual(output, """
         export type Root = RootItem[];
