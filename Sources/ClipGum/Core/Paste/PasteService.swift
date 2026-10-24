@@ -42,6 +42,10 @@ final class PasteService {
         try pasteboard.writeTextForExplicitUserAction(text)
     }
 
+    func copyResult(_ payload: PasteboardPayload) throws {
+        try pasteboard.writeDocumentForExplicitUserAction(payload)
+    }
+
     func paste(_ text: String, to targetApplication: NSRunningApplication?) throws {
         // Check before clearing the pasteboard: denial is non-destructive.
         guard accessibilityTrusted(true) else {
@@ -49,6 +53,19 @@ final class PasteService {
         }
 
         try pasteboard.writeTextForExplicitUserAction(text)
+        finishPaste(to: targetApplication)
+    }
+
+    func paste(_ payload: PasteboardPayload, to targetApplication: NSRunningApplication?) throws {
+        guard accessibilityTrusted(true) else {
+            throw PasteServiceError.accessibilityRequired
+        }
+
+        try pasteboard.writeDocumentForExplicitUserAction(payload)
+        finishPaste(to: targetApplication)
+    }
+
+    private func finishPaste(to targetApplication: NSRunningApplication?) {
         applicationActivator(targetApplication)
 
         // This is not polling. It yields one focus handoff before the explicit

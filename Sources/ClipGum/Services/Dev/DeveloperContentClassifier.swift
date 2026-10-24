@@ -43,11 +43,18 @@ struct DeveloperContentClassifier {
         return .general
     }
 
-    func actions(for input: String) -> [SmartPasteAction] {
-        var actions: [SmartPasteAction] = [
-            .clean, .urlClean, .secretScrub, .shareReady, .restoreIdentifiers
-        ]
-        switch classify(input) {
+    func actions(
+        for input: String,
+        hasRichText: Bool = false,
+        hasTable: Bool = false
+    ) -> [SmartPasteAction] {
+        var actions: [SmartPasteAction] = [.clean]
+        if hasRichText { actions.append(.sanitizeRichText) }
+        actions.append(contentsOf: [.urlClean, .secretScrub, .shareReady, .restoreIdentifiers])
+        let kind = classify(input)
+        if kind == .general { actions.append(.repairPDF) }
+        if hasTable { actions.append(.convertTable) }
+        switch kind {
         case .json:
             actions.append(contentsOf: [.formatJSON, .minifyJSON, .jsonToTypeScript])
         case .shell:
@@ -57,7 +64,9 @@ struct DeveloperContentClassifier {
         case .general:
             break
         }
-        actions.append(contentsOf: [.correction, .rewrite, .tableToCSV])
+        actions.append(contentsOf: [
+            .correction, .professionalEmail, .rewrite, .slackSummary, .tableToCSV
+        ])
         return actions
     }
 }

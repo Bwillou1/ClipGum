@@ -6,6 +6,21 @@ struct CleaningResult: Equatable, Sendable {
     let cleaned: String
     let removedTrackingParameters: Int
     let redactedSecrets: Int
+    let pasteboardPayload: PasteboardPayload?
+
+    init(
+        original: String,
+        cleaned: String,
+        removedTrackingParameters: Int,
+        redactedSecrets: Int,
+        pasteboardPayload: PasteboardPayload? = nil
+    ) {
+        self.original = original
+        self.cleaned = cleaned
+        self.removedTrackingParameters = removedTrackingParameters
+        self.redactedSecrets = redactedSecrets
+        self.pasteboardPayload = pasteboardPayload
+    }
 
     var hasChanges: Bool {
         original != cleaned

@@ -110,6 +110,63 @@ final class SystemPasteboardTests: XCTestCase {
         XCTAssertEqual(pasteboard.string(forType: .string), "after")
     }
 
+    func testDocumentReadCapturesPlainHTMLAndRTFFromOneItem() {
+        let item = makeItem(text: "plain")
+        XCTAssertTrue(item.setString("<strong>plain</strong>", forType: .html))
+        let rtf = Data("{\\rtf1 plain}".utf8)
+        XCTAssertTrue(item.setData(rtf, forType: .rtf))
+        writeItems([item])
+
+        XCTAssertEqual(
+            systemPasteboard.readDocumentForExplicitUserAction(),
+            .document(PasteboardDocument(
+                plainText: "plain",
+                html: "<strong>plain</strong>",
+                rtfData: rtf
+            ))
+        )
+    }
+
+    func testHTMLAndRTFOnlyItemsUseTheSameSensitiveMarkerGate() {
+        let htmlItem = NSPasteboardItem()
+        XCTAssertTrue(htmlItem.setString("<p>HTML only</p>", forType: .html))
+        writeItems([htmlItem])
+        XCTAssertEqual(
+            systemPasteboard.readDocumentForExplicitUserAction(),
+            .document(PasteboardDocument(html: "<p>HTML only</p>"))
+        )
+        XCTAssertEqual(systemPasteboard.readTextForExplicitUserAction(), .noText)
+
+        let rtf = Data("{\\rtf1 RTF only}".utf8)
+        let sensitive = NSPasteboardItem()
+        XCTAssertTrue(sensitive.setData(rtf, forType: .rtf))
+        XCTAssertTrue(sensitive.setString(
+            "",
+            forType: NSPasteboard.PasteboardType(PasteboardTypePolicy.concealed)
+        ))
+        writeItems([sensitive])
+        XCTAssertEqual(
+            systemPasteboard.readDocumentForExplicitUserAction(),
+            .excluded(marker: PasteboardTypePolicy.concealed)
+        )
+    }
+
+    func testRichWriteCreatesOneItemWithAllApprovedFlavors() {
+        let rtf = Data("{\\rtf1 rich}".utf8)
+        let payload = PasteboardPayload(
+            plainText: "rich",
+            html: "<strong>rich</strong>",
+            rtfData: rtf
+        )
+        XCTAssertNoThrow(try systemPasteboard.writeDocumentForExplicitUserAction(payload))
+
+        let items = pasteboard.pasteboardItems ?? []
+        XCTAssertEqual(items.count, 1)
+        XCTAssertEqual(items.first?.string(forType: .string), "rich")
+        XCTAssertEqual(items.first?.string(forType: .html), "<strong>rich</strong>")
+        XCTAssertEqual(items.first?.data(forType: .rtf), rtf)
+    }
+
     private func makeItem(text: String) -> NSPasteboardItem {
         let item = NSPasteboardItem()
         XCTAssertTrue(item.setString(text, forType: .string))

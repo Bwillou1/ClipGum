@@ -58,6 +58,15 @@ struct PaletteView: View {
                         .clipShape(Capsule())
                         .accessibilityLabel("Dangerous shell command. \(inspection.findings.count) safety findings.")
                 }
+                if preview.validation?.hasDataInvariantFailure == true {
+                    Label("DATA DISCREPANCY · EXPORT BLOCKED", systemImage: "exclamationmark.octagon.fill")
+                        .font(.caption.bold())
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Color.red)
+                        .clipShape(Capsule())
+                }
                 statusBadge(preview)
             }
 
@@ -93,6 +102,7 @@ struct PaletteView: View {
             }
             .controlSize(.small)
 
+            officeContextView
             developerOptionsView
             bashFindingsView
 
@@ -160,9 +170,12 @@ struct PaletteView: View {
                     .foregroundStyle(.secondary)
             }
 
-            Text("The pasteboard changes only after you choose Copy or Paste.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            Text(preview.exportPayload == nil
+                ? "The pasteboard changes only after you choose Copy or Paste."
+                : "Copy/Paste writes plain text, sanitized HTML, and RTF together as one pasteboard item."
+            )
+            .font(.caption)
+            .foregroundStyle(.secondary)
 
             HStack(spacing: 10) {
                 Button("Cancel", role: .cancel) {
@@ -192,8 +205,84 @@ struct PaletteView: View {
     }
 
     @ViewBuilder
+    private var officeContextView: some View {
+        if let profile = model.appProfile, !model.suggestedActions.isEmpty {
+            HStack(spacing: 8) {
+                Label(profile.displayName, systemImage: "app.badge")
+                    .font(.caption.weight(.semibold))
+                Text("Suggested:")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                ForEach(model.suggestedActions) { action in
+                    Button(action.title) {
+                        model.selectedAction = action
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
+                Spacer()
+                Text("Metadata only · no extra clipboard read")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    @ViewBuilder
     private var developerOptionsView: some View {
         switch model.selectedAction {
+        case .convertTable:
+            VStack(alignment: .leading, spacing: 8) {
+                if let detection = model.tableDetection {
+                    Label(
+                        "\(detection.source.title) · \(detection.rowCount) rows × \(detection.columnCount) columns",
+                        systemImage: "tablecells"
+                    )
+                    .font(.caption.weight(.semibold))
+                }
+                HStack(spacing: 12) {
+                    Picker("Table format", selection: $model.tableFormat) {
+                        ForEach(TableOutputFormat.allCases) { format in
+                            Text(format.title).tag(format)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 260)
+                    Picker("CSV delimiter", selection: $model.tableDelimiter) {
+                        ForEach(TableDelimiter.allCases) { delimiter in
+                            Text(delimiter.title).tag(delimiter)
+                        }
+                    }
+                    .frame(width: 190)
+                    .disabled(model.tableFormat != .csv)
+                    Text("Values remain unchanged; choose Run to refresh the preview.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                }
+            }
+        case .sanitizeRichText:
+            Label(
+                "Preserves bold, italics, links, H1–H3, and lists; strips CSS, backgrounds, and foreign typography. Export includes plain text, sanitized HTML, and AppKit RTF.",
+                systemImage: "doc.richtext"
+            )
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+        case .repairPDF:
+            Label(
+                "Joins hard wraps and soft word-break hyphens while preserving blank-line paragraphs and accented text.",
+                systemImage: "doc.plaintext"
+            )
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        case .professionalEmail, .slackSummary:
+            Label(
+                "Numbers, dates, currency symbols, and formulas are checked after generation. Any discrepancy blocks export.",
+                systemImage: "checkmark.shield"
+            )
+            .font(.caption)
+            .foregroundStyle(.secondary)
         case .formatJSON:
             HStack {
                 Text("JSON indentation")

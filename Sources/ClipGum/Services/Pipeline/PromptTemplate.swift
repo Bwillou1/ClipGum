@@ -21,12 +21,31 @@ struct PromptTemplate: Equatable, Sendable {
             """
         case .correction:
             instructions = Self.header + """
-            CORRECTION ONLY
-            Fix spelling, grammar, and punctuation only.
+            CORRECTION ONLY — FRANÇAIS / ENGLISH
+            Fix spelling, grammar, and punctuation only, in the source language.
             Do not alter facts, numbers, meaning, tone, style, language, formatting, URLs, code, or terminology.
             Preserve every fenced code block and inline code span byte-for-byte.
             Preserve every [SECRET_REDACTED] marker exactly.
             Return only the corrected text.
+            """
+        case .professionalEmail:
+            instructions = Self.header + """
+            PROFESSIONAL EMAIL — FACT / COMMITMENT / DEADLINE SAFE
+            Rewrite only the supplied message in a clear, concise, professional tone; keep its language.
+            Never invent a recipient, sender, subject, fact, owner, commitment, date, deadline, or next step.
+            Do not add promises, approvals, meetings, requests, greetings, signatures, or subjects absent from the source.
+            Preserve every number, percentage, currency symbol, date, formula, URL, and [SECRET_REDACTED] marker exactly.
+            Return only the rewritten email, without a code fence or commentary.
+            """
+        case .slackSummary:
+            instructions = Self.header + """
+            ACTION-ORIENTED SLACK / CHAT SUMMARY
+            Summarize only the supplied conversation with short bullets.
+            Use Decisions, Open actions, and Blockers headings only when directly supported by the source.
+            Never invent a fact, owner, commitment, date, deadline, or blocker.
+            Do not turn a question or proposal into a decision or commitment.
+            Preserve every number, percentage, currency symbol, date, formula, and [SECRET_REDACTED] marker exactly.
+            Return only the summary, without a preamble, closing offer, or code fence.
             """
         case .rewrite:
             instructions = Self.header + """
@@ -47,8 +66,9 @@ struct PromptTemplate: Equatable, Sendable {
             Exclude Markdown separator rows and return only CSV data without a code fence.
             Preserve every [SECRET_REDACTED] marker exactly.
             """
-        case .clean, .urlClean, .secretScrub, .shareReady, .restoreIdentifiers,
-            .formatJSON, .minifyJSON, .jsonToTypeScript, .scrubLogs, .inspectBash:
+        case .clean, .repairPDF, .sanitizeRichText, .urlClean, .secretScrub,
+            .shareReady, .restoreIdentifiers, .convertTable, .formatJSON, .minifyJSON,
+            .jsonToTypeScript, .scrubLogs, .inspectBash:
             instructions = ""
         }
     }

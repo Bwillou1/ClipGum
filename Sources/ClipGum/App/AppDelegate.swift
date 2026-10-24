@@ -4,6 +4,7 @@ import Foundation
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let cleaner = RuleCleaningService()
+    private let richTextSanitizer = RichTextSanitizer()
     private let pasteboard = SystemPasteboard()
     private let shareReadySession: ShareReadySession
     private let paletteController = PalettePanelController()
@@ -18,6 +19,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var hotKey: GlobalHotKey?
     private var paletteModel: PaletteModel?
     private var currentPreview: PalettePreview?
+    private var currentDocument: PasteboardDocument?
     private var targetApplication: NSRunningApplication?
     private var inferenceTask: Task<Void, Never>?
     private var modelLoadTask: Task<Void, Never>?
@@ -101,6 +103,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         shareReadySession.clear()
         chainSession.clear()
+        currentDocument = nil
+        currentPreview = nil
         hotKey?.invalidate()
         inferenceTask?.cancel()
         modelLoadTask?.cancel()
@@ -119,17 +123,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             ? nil
             : frontmost
 
-        switch pasteboard.readTextForExplicitUserAction() {
+        let appProfile = OfficeAppProfileResolver.profile(application: frontmost)
+        switch pasteboard.readDocumentForExplicitUserAction() {
+        case .document(let document):
+            handleCapturedDocument(document, appProfile: appProfile)
         case .text(let original):
-            if chainSession.isActive {
-                chainSession.add(original)
-                currentPreview = nil
-                showPalette(.chain(chainSession))
-            } else {
-                let preview = PalettePreview(deterministicResult: cleaner.clean(original))
-                currentPreview = preview
-                showPalette(.preview(preview))
-            }
+            handleCapturedDocument(
+                PasteboardDocument(plainText: original),
+                appProfile: appProfile
+            )
         case .accessDenied:
             showPalette(.message(PaletteMessage(
                 title: "Pasteboard access is denied",
@@ -143,8 +145,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             )))
         case .noText:
             showPalette(.message(PaletteMessage(
-                title: "No plain text found",
-                detail: "ClipGum handles one plain-text clipboard item. Copy text, then invoke ClipGum again.",
+                title: "No supported text found",
+                detail: "ClipGum handles one plain-text, public.html, or public.rtf item. Copy a single text selection, then invoke ClipGum again.",
                 systemImage: "doc.questionmark"
             )))
         case .emptyText:
@@ -162,7 +164,44 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func showPalette(_ content: PaletteContent) {
+    private func handleCapturedDocument(
+        _ document: PasteboardDocument,
+        appProfile: OfficeAppProfile
+    ) {
+        do {
+            let original = try richTextSanitizer.plainText(from: document)
+            guard !original.isEmpty else {
+                showPalette(.message(PaletteMessage(
+                    title: "Clipboard text is empty",
+                    detail: "The captured flavors contain no visible text. Copy some text, then invoke ClipGum again.",
+                    systemImage: "doc"
+                )))
+                return
+            }
+            if chainSession.isActive {
+                chainSession.add(original)
+                currentPreview = nil
+                showPalette(.chain(chainSession))
+            } else {
+                let preview = PalettePreview(deterministicResult: cleaner.clean(original))
+                currentPreview = preview
+                showPalette(.preview(preview), document: document, appProfile: appProfile)
+            }
+        } catch {
+            showPalette(.message(PaletteMessage(
+                title: "Rich text could not be read",
+                detail: userFacingMessage(for: error),
+                systemImage: "doc.questionmark"
+            )))
+        }
+    }
+
+    private func showPalette(
+        _ content: PaletteContent,
+        document: PasteboardDocument? = nil,
+        appProfile: OfficeAppProfile? = nil
+    ) {
+        currentDocument = document
         switch content {
         case .message, .chain:
             currentPreview = nil
@@ -170,7 +209,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             break
         }
 
-        let model = PaletteModel(content: content)
+        let model = PaletteModel(
+            content: content,
+            document: document,
+            appProfile: appProfile
+        )
         model.shareReadyMappingCount = shareReadySession.mappingCount
         paletteModel = model
         paletteController.show(
@@ -183,6 +226,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.inferenceTask = nil
                 self?.activeGenerationID = nil
                 self?.currentPreview = nil
+                self?.currentDocument = nil
                 self?.paletteModel = nil
                 self?.targetApplication = nil
             }
@@ -241,7 +285,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 return
             }
             do {
-                try pasteService.copyResult(preview.output)
+                if let payload = preview.exportPayload {
+                    try pasteService.copyResult(payload)
+                } else {
+                    try pasteService.copyResult(preview.output)
+                }
                 paletteController.dismiss()
             } catch {
                 paletteController.dismiss()
@@ -251,7 +299,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard let preview = currentPreview, preview.canExport else {
                 return
             }
-            pasteExplicitly(preview.output)
+            pasteExplicitly(preview.output, payload: preview.exportPayload)
         case .pasteOriginal:
             guard let preview = currentPreview else {
                 return
@@ -270,7 +318,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 if let result = try pipeline.mechanicalResult(
                     action: action,
                     input: currentPreview.original,
-                    options: paletteModel?.developerOptions ?? DeveloperActionOptions()
+                    options: paletteModel?.developerOptions ?? DeveloperActionOptions(),
+                    document: currentDocument
                 ) {
                     publish(PalettePreview(deterministicResult: result, action: action))
                 }
@@ -373,11 +422,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         publish(preview)
     }
 
-    private func pasteExplicitly(_ text: String) {
+    private func pasteExplicitly(_ text: String, payload: PasteboardPayload? = nil) {
         let target = targetApplication
         paletteController.dismiss()
         do {
-            try pasteService.paste(text, to: target)
+            if let payload, payload.plainText == text {
+                try pasteService.paste(payload, to: target)
+            } else {
+                try pasteService.paste(text, to: target)
+            }
         } catch {
             presentExecutionError(error)
         }
@@ -482,6 +535,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return description
         }
         if let error = error as? SmartPastePipelineError,
+            let description = error.errorDescription
+        {
+            return description
+        }
+        if let error = error as? RichTextWorkflowError,
+            let description = error.errorDescription
+        {
+            return description
+        }
+        if let error = error as? TableWorkflowError,
+            let description = error.errorDescription
+        {
+            return description
+        }
+        if let error = error as? HTMLScanError,
             let description = error.errorDescription
         {
             return description

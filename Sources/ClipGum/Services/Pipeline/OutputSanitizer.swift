@@ -13,12 +13,17 @@ struct OutputSanitizer {
             prefixes = ["Explanation:", "Bash explanation:", "Output:"]
         case .correction:
             prefixes = ["Corrected text:", "Correction:", "Output:"]
+        case .professionalEmail:
+            prefixes = ["Rewritten email:", "Professional email:", "Output:"]
+        case .slackSummary:
+            prefixes = ["Summary:", "Chat summary:", "Output:"]
         case .rewrite:
             prefixes = ["Rewritten text:", "Rewrite:", "Output:"]
         case .tableToCSV:
             prefixes = ["CSV:", "Output:"]
-        case .clean, .urlClean, .secretScrub, .shareReady, .restoreIdentifiers,
-            .formatJSON, .minifyJSON, .jsonToTypeScript, .scrubLogs, .inspectBash:
+        case .clean, .repairPDF, .sanitizeRichText, .urlClean, .secretScrub,
+            .shareReady, .restoreIdentifiers, .convertTable, .formatJSON, .minifyJSON,
+            .jsonToTypeScript, .scrubLogs, .inspectBash:
             prefixes = []
         }
         for prefix in prefixes where result.lowercased().hasPrefix(prefix.lowercased())

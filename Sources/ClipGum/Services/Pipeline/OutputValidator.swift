@@ -12,6 +12,8 @@ struct ValidationIssue: Equatable, Sendable {
         case secretRegenerated
         case missingRedactionMarker
         case numbersChanged
+        case currencyChanged
+        case formulaChanged
         case codeChanged
         case semanticDivergence
         case invalidTableSchema
@@ -39,6 +41,12 @@ struct ValidationReport: Equatable, Sendable {
         errors.isEmpty
     }
 
+    var hasDataInvariantFailure: Bool {
+        issues.contains {
+            $0.severity == .error && [.numbersChanged, .currencyChanged, .formulaChanged].contains($0.code)
+        }
+    }
+
     static let approved = ValidationReport(issues: [])
 }
 
@@ -50,9 +58,6 @@ struct OutputValidator {
     )
     private let tableExtractor = TableDataExtractor()
 
-    private static let numericPattern = try! NSRegularExpression(
-        pattern: #"\d+(?:[.,:/-]\d+)*(?:[eE][+-]?\d+)?%?"#
-    )
     private static let fencedCodePattern = try! NSRegularExpression(
         pattern: #"(?s)```.*?```"#
     )
@@ -104,16 +109,8 @@ struct OutputValidator {
         }
 
         switch action {
-        case .correction, .rewrite:
-            if matches(Self.numericPattern, in: source).sorted()
-                != matches(Self.numericPattern, in: output).sorted()
-            {
-                issues.append(issue(
-                    .numbersChanged,
-                    .error,
-                    "Numeric tokens were added, removed, or changed."
-                ))
-            }
+        case .correction, .rewrite, .professionalEmail, .slackSummary:
+            issues.append(contentsOf: DataInvariantValidator().issues(source: source, output: output))
             if matches(Self.fencedCodePattern, in: source).sorted()
                 != matches(Self.fencedCodePattern, in: output).sorted()
                 || matches(Self.inlineCodePattern, in: source).sorted()
@@ -130,9 +127,9 @@ struct OutputValidator {
             }
         case .tableToCSV:
             validateCSV(source: source, output: output, issues: &issues)
-        case .explainBash, .clean, .urlClean, .secretScrub, .shareReady,
-            .restoreIdentifiers, .formatJSON, .minifyJSON, .jsonToTypeScript,
-            .scrubLogs, .inspectBash:
+        case .explainBash, .clean, .repairPDF, .sanitizeRichText, .urlClean, .secretScrub,
+            .shareReady, .restoreIdentifiers, .convertTable, .formatJSON, .minifyJSON,
+            .jsonToTypeScript, .scrubLogs, .inspectBash:
             break
         }
         return ValidationReport(issues: issues)

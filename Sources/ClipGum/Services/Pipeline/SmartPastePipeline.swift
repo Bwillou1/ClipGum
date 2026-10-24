@@ -31,6 +31,10 @@ struct SmartPastePipeline {
     private let typeScriptGenerator: TypeScriptGenerator
     private let logScrubber: LogScrubber
     private let bashInspector: BashInspector
+    private let pdfRepair = PDFArtifactRepair()
+    private let richTextSanitizer = RichTextSanitizer()
+    private let officeTableExtractor = TableExtractionService()
+    private let tableFormatter = TableFormatter()
     private let shareReadySession: ShareReadySession
     private let sanitizer: OutputSanitizer
     private let validator: OutputValidator
@@ -64,13 +68,43 @@ struct SmartPastePipeline {
     func mechanicalResult(
         action: SmartPasteAction,
         input: String,
-        options: DeveloperActionOptions = DeveloperActionOptions()
+        options: DeveloperActionOptions = DeveloperActionOptions(),
+        document: PasteboardDocument? = nil
     ) throws -> CleaningResult? {
         let output: String
         let redactionCount: Int
         switch action {
         case .clean:
             return cleaner.clean(input)
+        case .repairPDF:
+            return CleaningResult(
+                original: input,
+                cleaned: pdfRepair.repair(input),
+                removedTrackingParameters: 0,
+                redactedSecrets: 0
+            )
+        case .sanitizeRichText:
+            let result = try richTextSanitizer.sanitize(
+                document: document ?? PasteboardDocument(plainText: input)
+            )
+            return CleaningResult(
+                original: input,
+                cleaned: result.plainText,
+                removedTrackingParameters: 0,
+                redactedSecrets: 0,
+                pasteboardPayload: result.payload
+            )
+        case .convertTable:
+            let table = try officeTableExtractor.extract(
+                document: document,
+                plainText: input
+            )
+            return CleaningResult(
+                original: input,
+                cleaned: try tableFormatter.format(table, options: options.table),
+                removedTrackingParameters: 0,
+                redactedSecrets: 0
+            )
         case .urlClean:
             return cleaner.cleanURLs(input)
         case .secretScrub:
@@ -105,7 +139,8 @@ struct SmartPastePipeline {
         case .inspectBash:
             output = bashInspector.report(bashInspector.inspect(input))
             redactionCount = 0
-        case .explainBash, .correction, .rewrite, .tableToCSV:
+        case .explainBash, .correction, .professionalEmail, .rewrite, .slackSummary,
+            .tableToCSV:
             return nil
         }
         return CleaningResult(
