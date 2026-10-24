@@ -182,7 +182,8 @@ final class LocalInferenceEngineTests: XCTestCase {
         } catch {
             XCTAssertEqual(error as? InferenceEngineError, .engineBusy)
         }
-        XCTAssertEqual(try await collectStrings(stream), ["done"])
+        let chunks = try await collectStrings(stream)
+        XCTAssertEqual(chunks, ["done"])
     }
 
     func testFailedModelLoadClassifiesAndCleansUp() async throws {

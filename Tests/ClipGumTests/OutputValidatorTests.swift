@@ -22,6 +22,14 @@ final class OutputValidatorTests: XCTestCase {
             ),
             "a,b"
         )
+        XCTAssertEqual(
+            sanitizer.sanitize(
+                action: .correction,
+                source: "Output: keep this genuine label.",
+                output: "Output: keep this genuine label."
+            ),
+            "Output: keep this genuine label."
+        )
     }
 
     func testUnchangedCorrectionPasses() {

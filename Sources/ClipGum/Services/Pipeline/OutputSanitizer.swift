@@ -5,6 +5,7 @@ import Foundation
 struct OutputSanitizer {
     func sanitize(action: SmartPasteAction, source: String, output: String) -> String {
         var result = output.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedSource = source.trimmingCharacters(in: .whitespacesAndNewlines)
 
         let prefixes: [String]
         switch action {
@@ -17,7 +18,9 @@ struct OutputSanitizer {
         case .clean, .urlClean, .secretScrub, .formatJSON:
             prefixes = []
         }
-        for prefix in prefixes where result.lowercased().hasPrefix(prefix.lowercased()) {
+        for prefix in prefixes where result.lowercased().hasPrefix(prefix.lowercased())
+            && !trimmedSource.lowercased().hasPrefix(prefix.lowercased())
+        {
             let remainder = result.dropFirst(prefix.count)
             if !remainder.isEmpty {
                 result = remainder.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -25,7 +28,6 @@ struct OutputSanitizer {
             break
         }
 
-        let trimmedSource = source.trimmingCharacters(in: .whitespacesAndNewlines)
         let sourceIsFencedBlock = trimmedSource.hasPrefix("```") && trimmedSource.hasSuffix("```")
         if !sourceIsFencedBlock,
             result.hasPrefix("```"),
@@ -39,7 +41,9 @@ struct OutputSanitizer {
                     .trimmingCharacters(in: .whitespacesAndNewlines)
             }
         }
-        for prefix in prefixes where result.lowercased().hasPrefix(prefix.lowercased()) {
+        for prefix in prefixes where result.lowercased().hasPrefix(prefix.lowercased())
+            && !trimmedSource.lowercased().hasPrefix(prefix.lowercased())
+        {
             let remainder = result.dropFirst(prefix.count)
             if !remainder.isEmpty {
                 result = remainder.trimmingCharacters(in: .whitespacesAndNewlines)
