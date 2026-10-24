@@ -18,7 +18,22 @@ jobs:
           swift package resolve
           cat Package.resolved
       - name: Run unit tests
-        run: swift test
+        shell: bash
+        run: |
+          set -o pipefail
+          set +e
+          swift test 2>&1 | tee /tmp/clipgum-swift-test.log
+          status=${PIPESTATUS[0]}
+          if [[ $status -ne 0 ]]; then
+            grep -E 'error:|XCTAssert|failed|Fatal error' /tmp/clipgum-swift-test.log \
+              | head -n 40 \
+              | while IFS= read -r line; do
+                  line=${line//$'\r'/}
+                  line=${line//'%'/'%25'}
+                  printf '::error::%s\n' "$line"
+                done
+          fi
+          exit "$status"
       - name: Validate packaging script
         run: bash -n Scripts/package_app.sh
       - name: Build app bundle

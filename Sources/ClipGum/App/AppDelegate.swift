@@ -398,7 +398,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func openInferenceSettings() {
         NSApp.activate(ignoringOtherApps: true)
-        _ = NSApp.sendAction(Selector(("showSettingsWindow:")), from: nil)
+        _ = NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
     }
 
     private func userFacingMessage(for error: Error) -> String {
