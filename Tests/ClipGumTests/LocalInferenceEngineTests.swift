@@ -212,6 +212,74 @@ final class LocalInferenceEngineTests: XCTestCase {
         })
     }
 
+    func testModelCannotUnloadWhileLoadIsInFlight() async throws {
+        let backend = MockManagedInferenceEngine(loadDelayNanoseconds: 200_000_000)
+        let engine = LocalInferenceEngine(
+            configuration: InferenceConfiguration(),
+            mlxFactory: { _ in backend },
+            ggufFactory: { _ in backend }
+        )
+        let loadTask = Task {
+            try await engine.loadModel(identifier: "mlx:/tmp/model")
+        }
+        let loadStarted = await waitForCondition {
+            let identifiers = await backend.loadIdentifiers
+            return identifiers.count == 1
+        }
+        XCTAssertTrue(loadStarted)
+        do {
+            try await engine.unloadModel()
+            XCTFail("Expected lifecycle busy error")
+        } catch {
+            XCTAssertEqual(error as? InferenceEngineError, .engineBusy)
+        }
+        try await loadTask.value
+    }
+
+    func testLifecycleRemainsBusyThroughOutOfMemoryCleanup() async throws {
+        let backend = MockManagedInferenceEngine(
+            chunks: ["partial"],
+            streamError: InferenceEngineError.outOfMemory,
+            unloadDelayNanoseconds: 500_000_000
+        )
+        let recorder = InferenceStatusRecorder()
+        let engine = LocalInferenceEngine(
+            configuration: InferenceConfiguration(),
+            mlxFactory: { _ in backend },
+            ggufFactory: { _ in backend }
+        )
+        await engine.setStatusHandler { recorder.record($0) }
+        try await engine.loadModel(identifier: "mlx:/tmp/model")
+        let stream = try await engine.transform(prompt: "p", input: "i", maxTokens: 10)
+        do {
+            _ = try await collectStrings(stream)
+            XCTFail("Expected out-of-memory error")
+        } catch {
+            XCTAssertEqual(error as? InferenceEngineError, .outOfMemory)
+        }
+        let cleanupStarted = await waitForCondition {
+            let count = await backend.unloadCallCount
+            return count == 1
+        }
+        XCTAssertTrue(cleanupStarted)
+        do {
+            try await engine.unloadModel()
+            XCTFail("Expected OOM cleanup to remain busy")
+        } catch {
+            XCTAssertEqual(error as? InferenceEngineError, .engineBusy)
+        }
+        let cleanupFinished = await waitForCondition {
+            recorder.values().last == .failed("Out of memory · Model unloaded")
+        }
+        XCTAssertTrue(cleanupFinished)
+        do {
+            _ = try await engine.transform(prompt: "p", input: "i", maxTokens: 10)
+            XCTFail("Expected the failed backend to stay unloaded")
+        } catch {
+            XCTAssertEqual(error as? InferenceEngineError, .modelNotLoaded)
+        }
+    }
+
     func testConfigurationUpdateReachesIdleBackend() async throws {
         let backend = MockManagedInferenceEngine()
         let engine = LocalInferenceEngine(

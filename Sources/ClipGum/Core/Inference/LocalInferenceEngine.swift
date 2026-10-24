@@ -14,6 +14,7 @@ actor LocalInferenceEngine: ManagedInferenceEngine {
     private var backendKind: InferenceBackendKind?
     private var loadedIdentifier: String?
     private var activeGeneration: Int?
+    private var lifecycleOperationActive = false
     private var nextGenerationID = 0
     private var activityVersion = 0
     private var idleTask: Task<Void, Never>?
@@ -36,7 +37,7 @@ actor LocalInferenceEngine: ManagedInferenceEngine {
     }
 
     func loadModel(identifier: String) async throws {
-        guard activeGeneration == nil else {
+        guard activeGeneration == nil, !lifecycleOperationActive else {
             throw InferenceEngineError.engineBusy
         }
         guard let modelIdentifier = ModelIdentifier(rawValue: identifier) else {
@@ -49,11 +50,19 @@ actor LocalInferenceEngine: ManagedInferenceEngine {
             return
         }
 
+        lifecycleOperationActive = true
+        defer { lifecycleOperationActive = false }
         idleTask?.cancel()
         activityVersion += 1
         if let oldBackend = backend {
             emit(.unloading)
-            try await oldBackend.unloadModel()
+            do {
+                try await oldBackend.unloadModel()
+            } catch {
+                let classified = InferenceErrorClassifier.classify(error)
+                emitFailure(for: classified)
+                throw classified
+            }
             backend = nil
             backendKind = nil
             loadedIdentifier = nil
@@ -87,7 +96,7 @@ actor LocalInferenceEngine: ManagedInferenceEngine {
         input: String,
         maxTokens: Int
     ) async throws -> AsyncThrowingStream<String, Error> {
-        guard activeGeneration == nil else {
+        guard activeGeneration == nil, !lifecycleOperationActive else {
             throw InferenceEngineError.engineBusy
         }
         guard let backend, let backendKind else {
@@ -112,17 +121,20 @@ actor LocalInferenceEngine: ManagedInferenceEngine {
                 maxTokens: boundedTokens
             )
         } catch {
-            activeGeneration = nil
             let classified = InferenceErrorClassifier.classify(error)
             if let engineError = classified as? InferenceEngineError,
                 engineError == .outOfMemory
             {
+                // Keep the generation busy across cleanup so no new request can
+                // enter a backend that is being torn down after an OOM.
                 try? await backend.unloadModel()
                 self.backend = nil
                 self.backendKind = nil
                 loadedIdentifier = nil
+                activeGeneration = nil
                 emitFailure(for: classified)
             } else {
+                activeGeneration = nil
                 emitReady(kind: backendKind)
                 scheduleIdleUnload()
             }
@@ -152,9 +164,11 @@ actor LocalInferenceEngine: ManagedInferenceEngine {
     }
 
     func unloadModel() async throws {
-        guard activeGeneration == nil else {
+        guard activeGeneration == nil, !lifecycleOperationActive else {
             throw InferenceEngineError.engineBusy
         }
+        lifecycleOperationActive = true
+        defer { lifecycleOperationActive = false }
         idleTask?.cancel()
         activityVersion += 1
         guard let backend else {
@@ -180,11 +194,14 @@ actor LocalInferenceEngine: ManagedInferenceEngine {
 
     func updateConfiguration(_ configuration: InferenceConfiguration) async {
         self.configuration = configuration
-        if activeGeneration == nil {
-            await backend?.updateConfiguration(configuration)
-            if backend != nil {
-                scheduleIdleUnload()
-            }
+        guard activeGeneration == nil, !lifecycleOperationActive else {
+            return
+        }
+        lifecycleOperationActive = true
+        await backend?.updateConfiguration(configuration)
+        lifecycleOperationActive = false
+        if backend != nil {
+            scheduleIdleUnload()
         }
     }
 
@@ -192,7 +209,6 @@ actor LocalInferenceEngine: ManagedInferenceEngine {
         guard activeGeneration == generationID else {
             return
         }
-        activeGeneration = nil
         activityVersion += 1
 
         if let engineError = failure as? InferenceEngineError,
@@ -203,15 +219,18 @@ actor LocalInferenceEngine: ManagedInferenceEngine {
             backend = nil
             backendKind = nil
             loadedIdentifier = nil
+            activeGeneration = nil
             emitFailure(for: engineError)
             return
         }
 
         if let backend, let backendKind {
             await backend.updateConfiguration(configuration)
+            activeGeneration = nil
             emitReady(kind: backendKind)
             scheduleIdleUnload()
         } else {
+            activeGeneration = nil
             emit(.idle)
         }
     }
@@ -234,9 +253,13 @@ actor LocalInferenceEngine: ManagedInferenceEngine {
     }
 
     private func unloadIfIdle(version: Int) async {
-        guard version == activityVersion, activeGeneration == nil, let backend else {
+        guard version == activityVersion, activeGeneration == nil,
+            !lifecycleOperationActive, let backend
+        else {
             return
         }
+        lifecycleOperationActive = true
+        defer { lifecycleOperationActive = false }
         emit(.unloading)
         try? await backend.unloadModel()
         self.backend = nil

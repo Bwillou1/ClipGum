@@ -78,7 +78,7 @@ actor MLXInferenceEngine: ManagedInferenceEngine {
         } catch {
             container = nil
             loadedIdentifier = nil
-            GPU.clearCache()
+            Memory.clearCache()
             throw InferenceErrorClassifier.classify(error)
         }
     }
@@ -142,12 +142,12 @@ actor MLXInferenceEngine: ManagedInferenceEngine {
         container = nil
         loadedIdentifier = nil
         // Dropping ModelContainer releases model arrays; clear cached Metal buffers too.
-        GPU.clearCache()
+        Memory.clearCache()
     }
 
     private func configureMemoryLimits() {
-        GPU.set(memoryLimit: configuration.mlxMemoryLimitBytes, relaxed: false)
-        GPU.set(cacheLimit: configuration.mlxCacheLimitBytes)
+        Memory.memoryLimit = configuration.mlxMemoryLimitBytes
+        Memory.cacheLimit = configuration.mlxCacheLimitBytes
     }
 
     private static var isAppleSilicon: Bool {

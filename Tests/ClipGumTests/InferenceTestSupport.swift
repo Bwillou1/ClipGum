@@ -18,23 +18,32 @@ actor MockManagedInferenceEngine: ManagedInferenceEngine {
     private let transformError: Error?
     private let streamError: Error?
     private let streamDelayNanoseconds: UInt64
+    private let loadDelayNanoseconds: UInt64
+    private let unloadDelayNanoseconds: UInt64
 
     init(
         chunks: [String] = [],
         loadError: Error? = nil,
         transformError: Error? = nil,
         streamError: Error? = nil,
-        streamDelayNanoseconds: UInt64 = 0
+        streamDelayNanoseconds: UInt64 = 0,
+        loadDelayNanoseconds: UInt64 = 0,
+        unloadDelayNanoseconds: UInt64 = 0
     ) {
         self.chunks = chunks
         self.loadError = loadError
         self.transformError = transformError
         self.streamError = streamError
         self.streamDelayNanoseconds = streamDelayNanoseconds
+        self.loadDelayNanoseconds = loadDelayNanoseconds
+        self.unloadDelayNanoseconds = unloadDelayNanoseconds
     }
 
     func loadModel(identifier: String) async throws {
         loadIdentifiers.append(identifier)
+        if loadDelayNanoseconds > 0 {
+            try? await Task.sleep(nanoseconds: loadDelayNanoseconds)
+        }
         if let loadError {
             throw loadError
         }
@@ -78,6 +87,9 @@ actor MockManagedInferenceEngine: ManagedInferenceEngine {
 
     func unloadModel() async throws {
         unloadCallCount += 1
+        if unloadDelayNanoseconds > 0 {
+            try? await Task.sleep(nanoseconds: unloadDelayNanoseconds)
+        }
     }
 
     func updateConfiguration(_ configuration: InferenceConfiguration) async {

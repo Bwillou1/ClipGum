@@ -37,4 +37,19 @@ jobs:
       - name: Validate packaging script
         run: bash -n Scripts/package_app.sh
       - name: Build app bundle
-        run: ./Scripts/package_app.sh
+        shell: bash
+        run: |
+          set -o pipefail
+          set +e
+          ./Scripts/package_app.sh 2>&1 | tee /tmp/clipgum-package.log
+          status=${PIPESTATUS[0]}
+          if [[ $status -ne 0 ]]; then
+            grep -E 'error:|failed|Fatal error' /tmp/clipgum-package.log \
+              | head -n 40 \
+              | while IFS= read -r line; do
+                  line=${line//$'\r'/}
+                  line=${line//'%'/'%25'}
+                  printf '::error::%s\n' "$line"
+                done
+          fi
+          exit "$status"

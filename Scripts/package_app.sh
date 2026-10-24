@@ -13,6 +13,16 @@ rm -rf "$APP_DIR"
 mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
 cp "$BIN_DIR/ClipGum" "$APP_DIR/Contents/MacOS/ClipGum"
 cp "$ROOT/Resources/Info.plist" "$APP_DIR/Contents/Info.plist"
+# SwiftPM emits MLX's Metal shaders in a resource bundle. Preserve every
+# generated dependency bundle; colocate standalone metallibs for MLX's fallback.
+shopt -s nullglob
+for bundle in "$BIN_DIR"/*.bundle; do
+  cp -R "$bundle" "$APP_DIR/Contents/Resources/"
+done
+for metallib in "$BIN_DIR"/*.metallib; do
+  cp "$metallib" "$APP_DIR/Contents/MacOS/"
+done
+shopt -u nullglob
 printf 'APPL????' > "$APP_DIR/Contents/PkgInfo"
 chmod +x "$APP_DIR/Contents/MacOS/ClipGum"
 

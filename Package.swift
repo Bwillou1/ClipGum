@@ -10,9 +10,9 @@ let package = Package(
         .executable(name: "ClipGum", targets: ["ClipGum"])
     ],
     dependencies: [
-        // Pinned to the Swift 5.9/5.10-era APIs inspected for this implementation.
-        .package(url: "https://github.com/ml-explore/mlx-swift", exact: "0.25.6"),
-        .package(url: "https://github.com/ml-explore/mlx-swift-lm", exact: "2.25.9"),
+        // Pinned to the inspected macOS 14-compatible LM-only package layout.
+        .package(url: "https://github.com/ml-explore/mlx-swift", exact: "0.31.3"),
+        .package(url: "https://github.com/ml-explore/mlx-swift-lm", exact: "2.31.3"),
         // Re-exports llama.cpp b10549's prebuilt XCFramework; ClipGum owns the
         // bounded actor/C-API wrapper rather than depending on a high-level client.
         .package(

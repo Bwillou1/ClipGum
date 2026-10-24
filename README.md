@@ -61,8 +61,8 @@ Streaming chunks are provisional UI state. A final `TransformationResult` is emi
 - macOS 14.0 or later to run.
 - **Xcode 16.3 or newer** to build. The macOS 15.4 SDK is required at compile time for `NSPasteboard.accessBehavior`; deployment remains macOS 14.
 - Swift Package Manager resolves:
-  - `mlx-swift` **0.25.6**
-  - `mlx-swift-lm` **2.25.9**
+  - `mlx-swift` **0.31.3**
+  - `mlx-swift-lm` **2.31.3** (the corrected LM-only package manifest; earlier split tags retain stale non-LM target paths)
   - `mattt/llama.swift` at commit `018619bf56f92cc85286150611609f456813826f`, which re-exports llama.cpp **b10549**'s prebuilt XCFramework.
 
 No model weights are bundled. Unit tests use mocks and do not download or load a model.
@@ -281,7 +281,7 @@ Sources/ClipGum/
     ├── Palette/                      # Floating streaming preview and four actions
     └── Settings/                     # Resource-only preferences and settings UI
 
-Tests/ClipGumTests/                   # 127 XCTest cases; no model weights required
+Tests/ClipGumTests/                   # 129 XCTest cases; no model weights required
 Resources/                            # Info.plist and minimal sandbox entitlements
 Scripts/package_app.sh                # Repeatable local .app packaging
 ```
@@ -290,7 +290,7 @@ Delayed work consists of the one-shot paste focus handoff and one-shot idle offl
 
 ## Tests and manual verification
 
-The **127 XCTest cases** cover:
+The **129 XCTest cases** cover:
 
 - All Phase 1 URL, secret, pasteboard-marker, access-policy, and explicit-paste behavior.
 - Prompt contents/non-interpolation, configuration clamps, local identifiers, and safe OOM classification.
@@ -316,8 +316,8 @@ References are pinned to inspected revisions. ClipGum's coordinator, validation,
 
 | Mechanism | Studied source | What was adapted — and what was not |
 | --- | --- | --- |
-| MLX generation and model lifecycle | [MLX Swift LM `Streamlined.swift`](https://github.com/ml-explore/mlx-swift-lm/blob/110f3e1865530df33433610c07ff46264f1bc9b4/Libraries/MLXLMCommon/Streamlined.swift), [MLX Examples `ChatModel.swift`](https://github.com/ml-explore/mlx-swift-examples/blob/378f2449c257788c5067b9f8b086731d76b39b33/Applications/LLMBasic/ChatModel.swift) | `ModelContainer`, `ChatSession`, `GenerateParameters`, and chunk streaming patterns. ClipGum uses only local directories, adds actual-token preflight and strict caps, and does not retain a conversation. |
-| MLX unified-memory controls | [MLX Swift `GPU.swift`](https://github.com/ml-explore/mlx-swift/blob/96c0f69cf15f38abd6248bb71fca908171dab1d8/Source/MLX/GPU.swift) | Non-relaxed memory/cache limits, resident-memory qualification, and `clearCache()` after dropping the model container. |
+| MLX generation and model lifecycle | [MLX Swift LM `ChatSession.swift`](https://github.com/ml-explore/mlx-swift-lm/blob/25b00d4e22e61ec9c41efda47990cd2084ec87ff/Libraries/MLXLMCommon/ChatSession.swift), [MLX Examples `ChatModel.swift`](https://github.com/ml-explore/mlx-swift-examples/blob/378f2449c257788c5067b9f8b086731d76b39b33/Applications/LLMBasic/ChatModel.swift) | `ModelContainer`, `ChatSession`, `GenerateParameters`, and chunk streaming patterns. ClipGum uses only local directories, adds actual-token preflight and strict caps, and does not retain a conversation. |
+| MLX unified-memory controls | [MLX Swift `Memory.swift`](https://github.com/ml-explore/mlx-swift/blob/61b9e011e09a62b489f6bd647958f1555bdf2896/Source/MLX/Memory.swift) | Explicit memory/cache limits, resident-memory qualification, and `clearCache()` after dropping the model container. |
 | llama.cpp C API and Swift ownership | [llama.cpp `llama.h`](https://github.com/ggml-org/llama.cpp/blob/b2e5e9b28b2484fbf94b543432ece638996a8b97/include/llama.h), [official `LibLlama.swift`](https://github.com/ggml-org/llama.cpp/blob/b2e5e9b28b2484fbf94b543432ece638996a8b97/examples/llama.swiftui/llama.cpp.swift/LibLlama.swift) | Chat-template application, tokenization, sampler chain, bounded decode, EOG handling, and symmetric sampler/batch/context/model/backend cleanup. ClipGum adds chunked prefill, byte/output caps, cancellation, and silent logging. |
 | GGUF Swift package binding | [llama.swift `Package.swift`](https://github.com/mattt/llama.swift/blob/018619bf56f92cc85286150611609f456813826f/Package.swift), [llama.swift `Llama.swift`](https://github.com/mattt/llama.swift/blob/018619bf56f92cc85286150611609f456813826f/Sources/LlamaSwift/Llama.swift) | Prebuilt upstream XCFramework discovery and direct C API re-export. No remote inference client or high-level black-box wrapper is used. |
 | SwiftLlama wrapper comparison | [SwiftLlama `Swiftllama.swift`](https://github.com/ShenghaiWang/SwiftLlama/blob/792181492beff9edba52314a040032cefb19edd6/Sources/SwiftLlama/Swiftllama.swift), [SwiftLlama `LlamaModel.swift`](https://github.com/ShenghaiWang/SwiftLlama/blob/792181492beff9edba52314a040032cefb19edd6/Sources/SwiftLlama/LlamaModel.swift) | Actor/stream boundary, low default temperature, fixed-seed sampling, and per-response cache clearing. ClipGum implements its own macOS 14 wrapper and does not adopt Combine/session history. |
