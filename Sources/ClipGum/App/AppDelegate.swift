@@ -117,6 +117,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             cleanAction: { [weak self] in
                 self?.handleExplicitUserTrigger()
             },
+            radialAction: { [weak self] in
+                self?.handleRadialUserTrigger()
+            },
             chooseDefaultAction: { [weak self] in
                 self?.loadDefaultModel()
             },
@@ -145,15 +148,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             }
         }
 
-        let hotKey = GlobalHotKey { [weak self] in
-            Task { @MainActor in
-                self?.handleExplicitUserTrigger()
+        let hotKey = GlobalHotKey(
+            standardAction: { [weak self] in
+                Task { @MainActor in
+                    self?.handleExplicitUserTrigger()
+                }
+            },
+            radialAction: { [weak self] in
+                Task { @MainActor in
+                    self?.handleRadialUserTrigger()
+                }
             }
-        }
+        )
         self.hotKey = hotKey
 
         do {
-            try hotKey.registerCommandShiftV()
+            try hotKey.registerShortcuts()
         } catch {
             presentHotKeyError(error)
         }
@@ -194,13 +204,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         onboardingController = nil
     }
 
-    /// The only production entry point that reads the general pasteboard.
+    /// The standard entry point that opens the full HUD (⌘⇧V).
     private func handleExplicitUserTrigger() {
         if paletteController.isPresented {
             paletteController.dismiss()
             return
         }
+        triggerPaletteCapture(radial: false)
+    }
 
+    /// The radial mouse-cursor wheel entry point (⌘⌥V).
+    func handleRadialUserTrigger() {
+        if paletteController.isPresented {
+            paletteController.dismiss()
+            return
+        }
+        triggerPaletteCapture(radial: true)
+    }
+
+    private func triggerPaletteCapture(radial: Bool) {
         let frontmost = NSWorkspace.shared.frontmostApplication
         targetApplication = frontmost?.processIdentifier == ProcessInfo.processInfo.processIdentifier
             ? nil
@@ -209,47 +231,49 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let appProfile = OfficeAppProfileResolver.profile(application: frontmost)
         switch pasteboard.readDocumentForExplicitUserAction() {
         case .document(let document):
-            handleCapturedDocument(document, appProfile: appProfile)
+            handleCapturedDocument(document, appProfile: appProfile, radial: radial)
         case .text(let original):
             handleCapturedDocument(
                 PasteboardDocument(plainText: original),
-                appProfile: appProfile
+                appProfile: appProfile,
+                radial: radial
             )
         case .accessDenied:
             showPalette(.message(PaletteMessage(
                 title: "Pasteboard access is denied",
                 detail: "ClipGum did not read the clipboard. Allow ClipGum in System Settings → Privacy & Security → Paste from Other Apps, then invoke ⌘⇧V again.",
                 showsPrivacySettings: true
-            )))
+            )), radial: radial)
         case .excluded:
             showPalette(.message(PaletteMessage(
                 title: "Sensitive clipboard skipped",
                 detail: "The source marked this item as concealed, transient, auto-generated, or a known password-manager value. ClipGum inspected metadata only and did not read its text."
-            )))
+            )), radial: radial)
         case .noText:
             showPalette(.message(PaletteMessage(
                 title: "No supported text found",
                 detail: "ClipGum handles one plain-text, public.html, or public.rtf item. Copy a single text selection, then invoke ClipGum again.",
                 systemImage: "doc.questionmark"
-            )))
+            )), radial: radial)
         case .emptyText:
             showPalette(.message(PaletteMessage(
                 title: "Clipboard text is empty",
                 detail: "Copy some text, then invoke ClipGum again.",
                 systemImage: "doc"
-            )))
+            )), radial: radial)
         case .multipleItems:
             showPalette(.message(PaletteMessage(
                 title: "Multiple items not supported",
                 detail: "ClipGum intentionally handles one text item at a time. Copy a single text selection and try again.",
                 systemImage: "rectangle.stack"
-            )))
+            )), radial: radial)
         }
     }
 
     private func handleCapturedDocument(
         _ document: PasteboardDocument,
-        appProfile: OfficeAppProfile
+        appProfile: OfficeAppProfile,
+        radial: Bool = false
     ) {
         do {
             let original = try richTextSanitizer.plainText(from: document)
@@ -258,31 +282,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                     title: "Clipboard text is empty",
                     detail: "The captured flavors contain no visible text. Copy some text, then invoke ClipGum again.",
                     systemImage: "doc"
-                )))
+                )), radial: radial)
                 return
             }
             if chainSession.isActive {
                 chainSession.add(original)
                 currentPreview = nil
-                showPalette(.chain(chainSession))
+                showPalette(.chain(chainSession), radial: radial)
             } else {
                 let preview = PalettePreview(deterministicResult: cleaner.clean(original))
                 currentPreview = preview
-                showPalette(.preview(preview), document: document, appProfile: appProfile)
+                showPalette(.preview(preview), document: document, appProfile: appProfile, radial: radial)
             }
         } catch {
             showPalette(.message(PaletteMessage(
                 title: "Rich text could not be read",
                 detail: userFacingMessage(for: error),
                 systemImage: "doc.questionmark"
-            )))
+            )), radial: radial)
         }
     }
 
     private func showPalette(
         _ content: PaletteContent,
         document: PasteboardDocument? = nil,
-        appProfile: OfficeAppProfile? = nil
+        appProfile: OfficeAppProfile? = nil,
+        radial: Bool = false
     ) {
         currentDocument = document
         switch content {
@@ -302,21 +327,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         model.managedPolicyBadges = enterprisePolicy.badges
         model.shareReadyMappingCount = shareReadySession.mappingCount
         paletteModel = model
-        paletteController.show(
-            model: model,
-            onAction: { [weak self] action in
-                self?.handlePaletteAction(action)
-            },
-            onDismiss: { [weak self] in
-                self?.inferenceTask?.cancel()
-                self?.inferenceTask = nil
-                self?.activeGenerationID = nil
-                self?.currentPreview = nil
-                self?.currentDocument = nil
-                self?.paletteModel = nil
-                self?.targetApplication = nil
-            }
-        )
+
+        if radial {
+            paletteController.showRadial(
+                model: model,
+                onAction: { [weak self] action in
+                    self?.handlePaletteAction(action)
+                },
+                onDismiss: { [weak self] in
+                    self?.inferenceTask?.cancel()
+                    self?.inferenceTask = nil
+                    self?.activeGenerationID = nil
+                    self?.currentPreview = nil
+                    self?.currentDocument = nil
+                    self?.paletteModel = nil
+                    self?.targetApplication = nil
+                }
+            )
+        } else {
+            paletteController.show(
+                model: model,
+                onAction: { [weak self] action in
+                    self?.handlePaletteAction(action)
+                },
+                onDismiss: { [weak self] in
+                    self?.inferenceTask?.cancel()
+                    self?.inferenceTask = nil
+                    self?.activeGenerationID = nil
+                    self?.currentPreview = nil
+                    self?.currentDocument = nil
+                    self?.paletteModel = nil
+                    self?.targetApplication = nil
+                }
+            )
+        }
     }
 
     private func handlePaletteAction(_ action: PaletteAction) {

@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClipGum — Sécurité, Confidentialité, Conformité RGPD & Licences</title>
+    <meta name="description" content="Documentation juridique complète, modèle de menace, conformité RGPD/HIPAA et registre exhaustif des licences open-source de ClipGum.">
+    <link rel="icon" type="image/jpeg" href="app-icon.jpg">
+    <style>
+        :root {
+            --bg: #090c10;
+            --surface: #121820;
+            --surface-subtle: #0f141a;
+            --border: rgba(255, 255, 255, 0.09);
+            --pink: #ff2e93;
+            --cyan: #00f0ff;
+            --emerald: #10b981;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+            --code-font: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background-color: var(--bg);
+            color: var(--text-primary);
+            font-family: var(--font);
+            line-height: 1.7;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 32px;
+            background: rgba(9, 12, 16, 0.85);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+        }
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: var(--text-primary);
+            font-weight: 700;
+            font-size: 19px;
+        }
+        .nav-logo {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            object-fit: cover;
+        }
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            margin-left: 20px;
+            transition: color 0.2s;
+        }
+        .nav-links a:hover { color: var(--pink); }
+
+        .container {
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 50px 24px 90px;
+        }
+
+        .header-box {
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 36px;
+            margin-bottom: 44px;
+        }
+        .badge {
+            display: inline-block;
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--emerald);
+            padding: 4px 12px;
+            border-radius: 99px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 14px;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+        h1 {
+            font-size: clamp(34px, 5vw, 48px);
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            margin-bottom: 16px;
+            line-height: 1.15;
+        }
+        .intro-lead {
+            font-size: 18px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .toc-box {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px 28px;
+            margin-bottom: 48px;
+        }
+        .toc-title {
+            font-size: 15px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 12px;
+            color: var(--cyan);
+        }
+        .toc-list {
+            list-style: none;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 10px;
+        }
+        .toc-list a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+            transition: color 0.2s;
+        }
+        .toc-list a:hover { color: var(--pink); }
+
+        section {
+            margin-bottom: 60px;
+            scroll-margin-top: 80px;
+        }
+        h2 {
+            font-size: 26px;
+            font-weight: 800;
+            margin-bottom: 18px;
+            color: var(--text-primary);
+            letter-spacing: -0.02em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        h3 {
+            font-size: 19px;
+            font-weight: 700;
+            margin: 28px 0 12px;
+            color: #cbd5e1;
+        }
+        p {
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+            font-size: 15.5px;
+        }
+        ul, ol {
+            color: var(--text-secondary);
+            padding-left: 24px;
+            margin-bottom: 18px;
+            font-size: 15px;
+        }
+        li { margin-bottom: 8px; }
+
+        .callout {
+            background: rgba(255, 46, 147, 0.08);
+            border-left: 4px solid var(--pink);
+            padding: 18px 22px;
+            border-radius: 8px;
+            margin: 24px 0;
+            color: #f1f5f9;
+        }
+        .callout.green {
+            background: rgba(16, 185, 129, 0.08);
+            border-left-color: var(--emerald);
+        }
+
+        .legal-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0 28px;
+            font-size: 14px;
+        }
+        .legal-table th, .legal-table td {
+            padding: 12px 16px;
+            border: 1px solid var(--border);
+            text-align: left;
+        }
+        .legal-table th {
+            background: #151c26;
+            color: var(--text-primary);
+            font-weight: 700;
+        }
+        .legal-table td {
+            background: #0f141b;
+            color: var(--text-secondary);
+        }
+
+        .license-block {
+            background: #070a0e;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            font-family: var(--code-font);
+            font-size: 12.5px;
+            line-height: 1.6;
+            color: #94a3b8;
+            white-space: pre-wrap;
+            overflow-x: auto;
+            max-height: 340px;
+            overflow-y: scroll;
+            margin: 14px 0 24px;
+        }
+
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 40px 0;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 13.5px;
+        }
+    </style>
+</head>
+<body>
+
+    <nav>
+        <a href="index.html" class="nav-brand">
+            <img src="app-icon.jpg" alt="Logo ClipGum" class="nav-logo">
+            <span>ClipGum</span>
+        </a>
+        <div class="nav-links">
+            <a href="index.html">← Retour à l'accueil</a>
+            <a href="index.html#simulateur">Simulateur</a>
+            <a href="https://github.com/Bwillou1/ClipGum" target="_blank" rel="noopener">GitHub</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <header class="header-box">
+            <div class="badge">Document Juridique Officiel • Révision 2026.1</div>
+            <h1>Sécurité, Confidentialité & Registre des Licences</h1>
+            <p class="intro-lead">
+                Ce document détaille l'architecture de protection des données, les engagements de conformité réglementaire (RGPD, CCPA, HIPAA) et l'intégralité des licences applicables à l'application <strong>ClipGum</strong>.
+            </p>
+        </header>
+
+        <!-- Table of Contents -->
+        <div class="toc-box">
+            <div class="toc-title">Table des matières</div>
+            <ul class="toc-list">
+                <li><a href="#zero-cloud">1. Architecture Zéro-Cloud & Confidentialité</a></li>
+                <li><a href="#threat-model">2. Modèle de menace & Isolation mémoire</a></li>
+                <li><a href="#compliance">3. Conformité RGPD, CCPA & HIPAA</a></li>
+                <li><a href="#enterprise">4. Politiques d'entreprise (MDM / CFPreferences)</a></li>
+                <li><a href="#integrity">5. Signature de code, Notarisation & SBOM</a></li>
+                <li><a href="#licenses">6. Registre exhaustif des Licences Libres</a></li>
+                <li><a href="#terms">7. Conditions d'utilisation & Clause de non-responsabilité</a></li>
+            </ul>
+        </div>
+
+        <!-- Section 1 -->
+        <section id="zero-cloud">
+            <h2>1. Architecture Zéro-Cloud & Confidentialité Absolue</h2>
+            <p>
+                Contrairement aux gestionnaires de presse-papiers traditionnels (Maccy, Paste, Clipy, Raycast Clipboard), ClipGum a été conçu selon un paradigme strict de <strong>non-surveillance</strong> et de <strong>traitement local exclusif</strong> :
+            </p>
+            <ul>
+                <li><strong>Aucune observation permanente en tâche de fond</strong> : ClipGum ne démarre aucun minuteur de sondage (polling loop) et n'installe aucun hook de frappe global (keylogger). Le presse-papiers n'est accédé que si et seulement si l'utilisateur déclenche explicitement le raccourci <code>⌘⇧V</code> (HUD complet) ou <code>⌘⌥V</code> (Menu radial autour de la souris).</li>
+                <li><strong>Zéro stockage permanent de clips</strong> : Aucun historique de vos textes n'est persisté sur disque. Dès la fermeture de la palette ou après exécution du collage, les mémoires volatiles sont immédiatement purgées.</li>
+                <li><strong>Inférence 100% sur l'appareil</strong> : Les modèles de langage locaux (notamment <code>prism-ml/bonsai-image-ternary-4B-mlx-2bit</code>) exécutent tous leurs calculs de tenseurs via l'Apple Neural Engine et Metal sur l'architecture unifiée Apple Silicon. Aucun octet de texte n'est transmis sur le réseau.</li>
+            </ul>
+
+            <div class="callout green">
+                <strong>Principe de non-traçabilité :</strong> ClipGum ne collecte, ne stocke et ne transmet aucun identifiant personnel, aucune donnée télémétrique sur le contenu de vos textes, et aucun identifiant matériel.
+            </div>
+        </section>
+
+        <!-- Section 2 -->
+        <section id="threat-model">
+            <h2>2. Modèle de menace & Isolation mémoire</h2>
+            <p>
+                La manipulation du presse-papiers implique des données hautement critiques : clés de chiffrement, mots de passe de gestionnaires (1Password, Bitwarden, Apple Trousseau), jetons de session JWT et données confidentielles. ClipGum implémente les remparts suivants :
+            </p>
+
+            <table class="legal-table">
+                <thead>
+                    <tr>
+                        <th>Vecteur de risque</th>
+                        <th>Mitigation native ClipGum</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Capture involontaire de mots de passe</td>
+                        <td>Inspection préliminaire des métadonnées pasteboard (<code>org.nspasteboard.ConcealedType</code>, <code>org.nspasteboard.AutoGeneratedType</code>). Si le gestionnaire marque le clip comme sensible, ClipGum refuse de lire le contenu.</td>
+                    </tr>
+                    <tr>
+                        <td>Fuite d'identifiants vers un LLM</td>
+                        <td>Pipeline à double détente : les filtres d'anonymisation déterministe (regex et entropie) s'exécutent TOUJOURS avant d'envoyer le moindre contexte au modèle d'inférence.</td>
+                    </tr>
+                    <tr>
+                        <td>Injection de prompt malveillant (Prompt Injection)</td>
+                        <td>Séparation stricte des canaux : les instructions système et les entrées clipboard non fiables sont isolées dans des conteneurs d'exécution séparés.</td>
+                    </tr>
+                    <tr>
+                        <td>Attaque par canaux auxiliaires (Side-Channel)</td>
+                        <td>Utilisation exclusive de Swift 6 avec sécurité mémoire stricte (Concurrency Data Isolation), zéro pointeur brut C non encapsulé.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- Section 3 -->
+        <section id="compliance">
+            <h2>3. Conformité Réglementaire (RGPD, CCPA, HIPAA)</h2>
+            <h3>Règlement Général sur la Protection des Données (RGPD - UE 2016/679)</h3>
+            <p>ClipGum s'inscrit en conformité directe avec les principes fondamentaux du RGPD :</p>
+            <ul>
+                <li><strong>Article 5 (Minimisation et limitation des finalités)</strong> : Les données copiées ne sont traitées que le temps de la transformation manuelle et ne sont jamais réutilisées pour l'entraînement d'un modèle d'IA.</li>
+                <li><strong>Article 25 (Protection des données dès la conception et par défaut)</strong> : La configuration initiale désactive toute télémétrie et active par défaut le masquage des secrets.</li>
+                <li><strong>Article 32 (Sécurité du traitement)</strong> : Aucun transit réseau des textes transformés; isolation mémoire intégrale sur l'enclave du Mac.</li>
+            </ul>
+
+            <h3>HIPAA & PCI-DSS (Données de santé et bancaires)</h3>
+            <p>
+                Le module déterministe de ClipGum intègre des expressions régulières conformes à la norme PCI-DSS pour la détection et la suppression immédiate des numéros de cartes de paiement (algorithme de Luhn) ainsi que des motifs d'identifiants de santé (SSN, NIR, identifiants médicaux), réduisant ainsi le risque de fuite accidentelle vers des tiers lors de partages d'écran ou d'échanges collaboratifs.
+            </p>
+        </section>
+
+        <!-- Section 4 -->
+        <section id="enterprise">
+            <h2>4. Politiques d'Entreprise (MDM & CFPreferences)</h2>
+            <p>
+                Pour les organisations et administrateurs de parc Mac, ClipGum respecte les profils de configuration Apple MDM (Jamf, Kandji, Microsoft Intune) via le domaine <code>com.clipgum.ClipGum</code> :
+            </p>
+            <ul>
+                <li><code>DisableExternalLLM (booléen)</code> : Verrouille l'application en mode local strict, interdisant tout appel vers des endpoints distants ou clés API tierces.</li>
+                <li><code>ForceSecretRedaction (booléen)</code> : Impose le masquage automatique des tokens et clés d'accès sans possibilité de désactivation par l'utilisateur.</li>
+                <li><code>LockTelemetry (booléen)</code> : Désactive irrémédiablement l'exportation de diagnostics d'erreurs.</li>
+            </ul>
+        </section>
+
+        <!-- Section 5 -->
+        <section id="integrity">
+            <h2>5. Signature de code, Notarisation & Intégrité SBOM</h2>
+            <p>
+                Chaque livraison de ClipGum fait l'objet d'un contrôle cryptographique strict :
+            </p>
+            <ul>
+                <li><strong>Mises à jour Sparkle 2 signées par EdDSA (Ed25519)</strong> : La clé publique officielle empêche toute attaque par usurpation de binaire (tampering) ou attaque Man-in-the-Middle.</li>
+                <li><strong>SBOM (Software Bill of Materials)</strong> : Un inventaire exhaustif au standard CycloneDX v1.5 est embarqué dans <code>Contents/Resources/SBOM.json</code> pour traçabilité complète des dépendances directes et transitives.</li>
+            </ul>
+        </section>
+
+        <!-- Section 6 -->
+        <section id="licenses">
+            <h2>6. Registre Exhaustif des Licences Open-Source</h2>
+            <p>
+                ClipGum est composé de briques logicielles open-source auditées. Conformément à leurs termes, l'intégralité des avis de copyright et textes de licences applicables est reproduite ci-dessous :
+            </p>
+
+            <h3>ClipGum Application & ClipGumCore</h3>
+            <p><strong>Licence :</strong> Apache License, Version 2.0</p>
+            <div class="license-block">Copyright 2026 ClipGum Contributors
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.</div>
+
+            <h3>Apple MLX, MLX Swift & MLX Swift LM</h3>
+            <p><strong>Licence :</strong> MIT License • Copyright © 2023-2026 Apple Inc.</p>
+            <div class="license-block">MIT License
+
+Copyright (c) 2023-2026 Apple Inc.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.</div>
+
+            <h3>PrismML Bonsai 4B Architecture & Weights</h3>
+            <p><strong>Licence :</strong> Apache License 2.0 • Copyright © 2026 PrismML Inc.</p>
+            <div class="license-block">PrismML Bonsai Model Weights and Architectures are licensed under Apache 2.0.
+Redistribution and local inference are permitted with attribution.
+ClipGum interacts with Bonsai weights using public MLX and GGUF quantization runtimes.</div>
+
+            <h3>llama.cpp & llama.swift</h3>
+            <p><strong>Licence :</strong> MIT License • Copyright © 2023-2026 Georgi Gerganov & Mattt</p>
+            <div class="license-block">MIT License
+
+Copyright (c) 2023-2026 Georgi Gerganov, Mattt
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software... [AS IS DISCLAIMER APPLIES]</div>
+
+            <h3>Sparkle Updater Framework</h3>
+            <p><strong>Licence :</strong> BSD 3-Clause License • Copyright © 2006-2026 Andy Matuschak & Sparkle Project</p>
+            <div class="license-block">Copyright (c) 2006-2026 Andy Matuschak, Sparkle Project Developers.
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification,
+are permitted provided that the following conditions are met:
+1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.</div>
+
+            <h3>Argon2 Swift (RFC 9106)</h3>
+            <p><strong>Licence :</strong> MIT License • Copyright © 2021-2026 Colt3k</p>
+            <div class="license-block">Copyright (c) 2021-2026 Colt3k
+Licensed under the MIT License. Pinned RFC 9106 implementation for secure key derivation.</div>
+        </section>
+
+        <!-- Section 7 -->
+        <section id="terms">
+            <h2>7. Conditions d'utilisation & Clause de non-responsabilité</h2>
+            <div class="callout">
+                <strong>CLAUSE DE NON-GARANTIE :</strong> LE LOGICIEL CLIPGUM EST FOURNI « EN L'ÉTAT » (« AS IS »), SANS AUCUNE GARANTIE D'AUCUNE SORTE, EXPRESSE OU IMPLICITE, Y COMPRIS MAIS SANS S'Y LIMITER LES GARANTIES DE QUALITÉ MARCHANDE, D'ADÉQUATION À UN USAGE PARTICULIER OU D'ABSENCE DE CONTREFAÇON.
+            </div>
+            <p>
+                L'utilisateur reconnaît que le traitement de données par expressions régulières et modèles de langage statistique (LLM) peut comporter des faux positifs ou des omissions (faux négatifs). En conséquence :
+            </p>
+            <ol>
+                <li>ClipGum constitue un outil d'assistance et de réduction des risques, mais ne saurait remplacer un audit de sécurité formel ou une politique de gestion des droits d'accès d'entreprise.</li>
+                <li>L'utilisateur conserve la pleine et entière responsabilité des contenus qu'il choisit de coller ou de transmettre à des tiers.</li>
+                <li>Les contributeurs du projet déclinent toute responsabilité en cas de perte de données, d'altération de documents ou de fuite résultant d'une utilisation inappropriée du logiciel.</li>
+            </ol>
+        </section>
+    </div>
+
+    <footer>
+        <div class="container">
+            <div>© 2026 ClipGum — Conforme RGPD, Apple Silicon & Open-Source Apache-2.0.</div>
+        </div>
+    </footer>
+
+</body>
+</html>

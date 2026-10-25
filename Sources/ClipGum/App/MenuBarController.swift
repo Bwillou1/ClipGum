@@ -6,6 +6,7 @@ import Foundation
 final class MenuBarController: NSObject {
     private let statusItem: NSStatusItem
     private let cleanAction: () -> Void
+    private let radialAction: () -> Void
     private let chooseDefaultAction: () -> Void
     private let chooseMLXAction: () -> Void
     private let chooseGGUFAction: () -> Void
@@ -22,6 +23,7 @@ final class MenuBarController: NSObject {
 
     init(
         cleanAction: @escaping () -> Void,
+        radialAction: @escaping () -> Void,
         chooseDefaultAction: @escaping () -> Void,
         chooseMLXAction: @escaping () -> Void,
         chooseGGUFAction: @escaping () -> Void,
@@ -31,6 +33,7 @@ final class MenuBarController: NSObject {
     ) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         self.cleanAction = cleanAction
+        self.radialAction = radialAction
         self.chooseDefaultAction = chooseDefaultAction
         self.chooseMLXAction = chooseMLXAction
         self.chooseGGUFAction = chooseGGUFAction
@@ -72,8 +75,17 @@ final class MenuBarController: NSObject {
             keyEquivalent: ""
         )
         cleanItem.target = self
-        cleanItem.toolTip = "Read the current clipboard once and show a preview"
+        cleanItem.toolTip = "Read the current clipboard once and show full preview HUD"
         menu.addItem(cleanItem)
+
+        let radialItem = NSMenuItem(
+            title: "Mouse Radial Wheel… (⌘⌥V)",
+            action: #selector(radialMenuItemSelected),
+            keyEquivalent: ""
+        )
+        radialItem.target = self
+        radialItem.toolTip = "Surround mouse cursor with quick circular action wheel"
+        menu.addItem(radialItem)
         menu.addItem(.separator())
 
         inferenceStatusMenuItem.isEnabled = false
@@ -149,6 +161,10 @@ final class MenuBarController: NSObject {
 
     @objc private func cleanMenuItemSelected() {
         cleanAction()
+    }
+
+    @objc private func radialMenuItemSelected() {
+        radialAction()
     }
 
     @objc private func chooseDefaultSelected() {

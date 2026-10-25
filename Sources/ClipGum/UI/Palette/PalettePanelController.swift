@@ -37,6 +37,29 @@ final class PalettePanelController: NSObject, NSWindowDelegate {
         panel.orderFrontRegardless()
     }
 
+    func showRadial(
+        model: PaletteModel,
+        onAction: @escaping (PaletteAction) -> Void,
+        onDismiss: @escaping () -> Void
+    ) {
+        let rootView = RadialPaletteView(
+            model: model,
+            onAction: onAction,
+            onDismiss: { [weak self] in self?.dismiss() }
+        )
+        self.model = model
+        panel.contentViewController = NSHostingController(rootView: rootView)
+        panel.setContentSize(NSSize(width: 340, height: 340))
+        positionAroundMouse()
+        self.onDismiss = onDismiss
+        isPresented = true
+        installEscapeMonitor()
+
+        NSApp.activate(ignoringOtherApps: true)
+        panel.makeKeyAndOrderFront(nil)
+        panel.orderFrontRegardless()
+    }
+
     func dismiss() {
         guard isPresented else {
             return
@@ -82,6 +105,24 @@ final class PalettePanelController: NSObject, NSWindowDelegate {
             NSEvent.removeMonitor(escapeMonitor)
             self.escapeMonitor = nil
         }
+    }
+
+    private func positionAroundMouse() {
+        let mouseLocation = NSEvent.mouseLocation
+        let screen = NSScreen.screens.first(where: {
+            $0.frame.contains(mouseLocation)
+        }) ?? NSScreen.main
+        guard let visibleFrame = screen?.visibleFrame else {
+            panel.center()
+            return
+        }
+
+        let size = panel.frame.size
+        let targetX = mouseLocation.x - size.width / 2
+        let targetY = mouseLocation.y - size.height / 2
+        let x = min(max(targetX, visibleFrame.minX), visibleFrame.maxX - size.width)
+        let y = min(max(targetY, visibleFrame.minY), visibleFrame.maxY - size.height)
+        panel.setFrameOrigin(NSPoint(x: x, y: y))
     }
 
     private func positionNearScreenCenter() {

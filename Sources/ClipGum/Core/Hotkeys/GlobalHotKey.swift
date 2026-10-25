@@ -10,30 +10,33 @@ enum GlobalHotKeyError: LocalizedError {
         case .handlerInstallationFailed(let status):
             return "The Carbon event handler could not be installed (status \(status))."
         case .registrationFailed(let status):
-            return "⌘⇧V could not be registered (status \(status)). Another app may own the shortcut."
+            return "Global shortcuts could not be registered (status \(status)). Another app may own the shortcut."
         }
     }
 }
 
-/// A single Carbon-registered global shortcut.
-///
-/// Carbon delivers only the registered hotkey, unlike a global NSEvent keyboard
-/// monitor which observes every key. No Accessibility permission is needed to
-/// register this shortcut.
+/// Carbon-registered global shortcuts (⌘⇧V for HUD palette, ⌘⌥V for mouse radial wheel).
 final class GlobalHotKey {
     private static let signature = OSType(0x434C4755) // "CLGU"
-    private static let hotKeyIdentifier = UInt32(1)
+    private static let standardHotKeyID = UInt32(1)
+    private static let radialHotKeyID = UInt32(2)
 
-    private let action: () -> Void
+    private let standardAction: () -> Void
+    private let radialAction: () -> Void
     private var eventHandler: EventHandlerRef?
-    private var eventHotKey: EventHotKeyRef?
+    private var standardHotKey: EventHotKeyRef?
+    private var radialHotKey: EventHotKeyRef?
 
-    init(action: @escaping () -> Void) {
-        self.action = action
+    init(
+        standardAction: @escaping () -> Void,
+        radialAction: @escaping () -> Void = {}
+    ) {
+        self.standardAction = standardAction
+        self.radialAction = radialAction
     }
 
-    func registerCommandShiftV() throws {
-        guard eventHotKey == nil else {
+    func registerShortcuts() throws {
+        guard standardHotKey == nil else {
             return
         }
 
@@ -64,34 +67,52 @@ final class GlobalHotKey {
         }
         eventHandler = handler
 
-        let identifier = EventHotKeyID(
+        // 1. ⌘⇧V (Command + Shift + V) -> Standard HUD
+        let standardID = EventHotKeyID(
             signature: Self.signature,
-            id: Self.hotKeyIdentifier
+            id: Self.standardHotKeyID
         )
-        let registrationStatus = RegisterEventHotKey(
+        let standardStatus = RegisterEventHotKey(
             UInt32(kVK_ANSI_V),
             UInt32(cmdKey | shiftKey),
-            identifier,
+            standardID,
             GetApplicationEventTarget(),
             0,
-            &eventHotKey
+            &standardHotKey
         )
 
-        guard registrationStatus == noErr, eventHotKey != nil else {
-            if let eventHotKey {
-                UnregisterEventHotKey(eventHotKey)
-                self.eventHotKey = nil
-            }
-            RemoveEventHandler(handler)
-            eventHandler = nil
-            throw GlobalHotKeyError.registrationFailed(registrationStatus)
+        guard standardStatus == noErr, standardHotKey != nil else {
+            invalidate()
+            throw GlobalHotKeyError.registrationFailed(standardStatus)
         }
+
+        // 2. ⌘⌥V (Command + Option + V) -> Radial Wheel around mouse
+        let radialID = EventHotKeyID(
+            signature: Self.signature,
+            id: Self.radialHotKeyID
+        )
+        _ = RegisterEventHotKey(
+            UInt32(kVK_ANSI_V),
+            UInt32(cmdKey | optionKey),
+            radialID,
+            GetApplicationEventTarget(),
+            0,
+            &radialHotKey
+        )
+    }
+
+    func registerCommandShiftV() throws {
+        try registerShortcuts()
     }
 
     func invalidate() {
-        if let eventHotKey {
-            UnregisterEventHotKey(eventHotKey)
-            self.eventHotKey = nil
+        if let standardHotKey {
+            UnregisterEventHotKey(standardHotKey)
+            self.standardHotKey = nil
+        }
+        if let radialHotKey {
+            UnregisterEventHotKey(radialHotKey)
+            self.radialHotKey = nil
         }
         if let eventHandler {
             RemoveEventHandler(eventHandler)
@@ -113,16 +134,19 @@ final class GlobalHotKey {
         guard status == noErr else {
             return status
         }
-        guard
-            identifier.signature == Self.signature,
-            identifier.id == Self.hotKeyIdentifier
-        else {
+        guard identifier.signature == Self.signature else {
             return OSStatus(eventNotHandledErr)
         }
 
-        // Carbon invokes this handler on the app's event loop.
-        action()
-        return noErr
+        if identifier.id == Self.radialHotKeyID {
+            radialAction()
+            return noErr
+        } else if identifier.id == Self.standardHotKeyID {
+            standardAction()
+            return noErr
+        }
+
+        return OSStatus(eventNotHandledErr)
     }
 
     deinit {
