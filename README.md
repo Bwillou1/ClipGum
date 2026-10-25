@@ -472,7 +472,7 @@ Sources/ClipGum/
     ├── Onboarding/                   # First-run trigger, permissions, readiness, verified download
     └── Settings/                     # Inference, Updates, Privacy & Audit, Licenses/SBOM
 
-Tests/ClipGumTests/                   # 230 XCTest cases; no model weights required
+Tests/ClipGumTests/                   # XCTest regression suites; no model weights required
 Resources/                            # Info.plist and minimal sandbox entitlements
 Build/                                # Signing/notary/DMG/Cask/SBOM/appcast and validation scripts
 BETA_TESTING.md                       # Beta privacy guarantees, feedback, and test protocols
@@ -504,7 +504,7 @@ Delayed work consists of the one-shot paste focus handoff and one-shot idle offl
 
 ## Tests and manual verification
 
-The **230 XCTest cases** cover:
+The XCTest regression suites cover:
 
 - All Phase 1 URL, secret, pasteboard-marker, access-policy, and explicit-paste behavior.
 - Prompt contents/non-interpolation, configuration clamps, local identifiers, and safe OOM classification.
@@ -521,6 +521,9 @@ The **230 XCTest cases** cover:
 - Number/percentage/date/currency/formula invariants, named English/French dates, discrepancy blocking, Office prompts, cleaned-only inference input, app profiles, HUD table options, and rich payload/plain-preview agreement.
 - Multi-flavor one-item pasteboard reads/writes and Accessibility-denied rich-paste non-destructiveness.
 - Fail-closed update metadata, Ed25519 key shape, stable/beta channels, default-off preferences, strict HTTPS, diagnostics schema/percentiles/clearing, model-manifest/RAM/byte/SHA/atomic-install behavior, onboarding/resources, exact entitlement allowlists, and zero-request copy/transform/paste isolation.
+- Mutual P2P confirmation, cleaned-only transfer, encrypted acknowledgement, malformed/tampered/replayed packet rejection, and close behavior.
+- RFC 9106 Argon2id known answers, encrypted backup round trips, wrong-password/tamper rejection, unsafe schema/KDF limits, and the mobile deterministic adapter.
+- Recorded performance metrics and virtual idle checks live separately in `Tests/Performance`; physical cold-start and 72-hour measurements remain manual.
 
 Before a release, manually verify on each supported macOS line and Apple Silicon target:
 

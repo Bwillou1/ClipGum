@@ -58,19 +58,23 @@ public final class LocalP2PService {
         let listener = try NWListener(using: Self.parameters())
         listener.service = NWListener.Service(name: serviceName, type: Self.serviceType)
         listener.stateUpdateHandler = { [weak self] state in
-            guard let self else { return }
-            switch state {
-            case .ready:
-                self.onStatusChanged(.browsing)
-            case .failed:
-                self.onError(.connectionClosed)
-                self.stop()
-            default:
-                break
+            Task { @MainActor in
+                guard let self else { return }
+                switch state {
+                case .ready:
+                    self.onStatusChanged(.browsing)
+                case .failed:
+                    self.onError(.connectionClosed)
+                    self.stop()
+                default:
+                    break
+                }
             }
         }
         listener.newConnectionHandler = { [weak self] connection in
-            self?.accept(connection)
+            Task { @MainActor in
+                self?.accept(connection)
+            }
         }
 
         let browser = NWBrowser(
@@ -78,10 +82,14 @@ public final class LocalP2PService {
             using: Self.parameters()
         )
         browser.stateUpdateHandler = { [weak self] state in
-            if case .failed = state { self?.onError(.connectionClosed) }
+            Task { @MainActor in
+                if case .failed = state { self?.onError(.connectionClosed) }
+            }
         }
         browser.browseResultsChangedHandler = { [weak self] results, _ in
-            self?.updateDevices(results)
+            Task { @MainActor in
+                self?.updateDevices(results)
+            }
         }
 
         self.listener = listener
@@ -239,12 +247,14 @@ private final class P2PNetworkConnection {
 
     func start() {
         connection.stateUpdateHandler = { [weak self] state in
-            guard let self else { return }
-            switch state {
-            case .failed, .cancelled:
-                self.finish()
-            default:
-                break
+            Task { @MainActor in
+                guard let self else { return }
+                switch state {
+                case .failed, .cancelled:
+                    self.finish()
+                default:
+                    break
+                }
             }
         }
         connection.start(queue: .main)
@@ -268,10 +278,15 @@ private final class P2PNetworkConnection {
     func send(_ frame: P2PFrame) {
         guard !didClose else { return }
         do {
-            var packet = try P2PFrameCodec.encode(frame)
-            connection.send(content: packet, completion: .contentProcessed { [weak self] error in
-                if let error { self?.fail(error) }
-                wipeP2PData(&packet)
+            let packet = try P2PFrameCodec.encode(frame)
+            connection.send(content: packet, completion: .contentProcessed { [weak self, packet] error in
+                var discardedPacket = packet
+                wipeP2PData(&discardedPacket)
+                if let error {
+                    Task { @MainActor in
+                        self?.fail(error)
+                    }
+                }
             })
             scheduleTimeout(after: session.state == .ready ? 60 : 30)
         } catch {
@@ -291,28 +306,30 @@ private final class P2PNetworkConnection {
         guard !didClose else { return }
         connection.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1_024) {
             [weak self] data, _, isComplete, error in
-            guard let self, !self.didClose else { return }
-            if let error {
-                self.fail(error)
-                return
-            }
-            do {
-                if var data, !data.isEmpty {
-                    let frames = try self.accumulator.append(data)
-                    wipeP2PData(&data)
-                    for frame in frames {
-                        var body = frame.body
-                        try self.handle(self.session.receive(P2PFrame(kind: frame.kind, body: body)))
-                        wipeP2PData(&body)
+            Task { @MainActor in
+                guard let self, !self.didClose else { return }
+                if let error {
+                    self.fail(error)
+                    return
+                }
+                do {
+                    if var data, !data.isEmpty {
+                        let frames = try self.accumulator.append(data)
+                        wipeP2PData(&data)
+                        for frame in frames {
+                            var body = frame.body
+                            try self.handle(self.session.receive(P2PFrame(kind: frame.kind, body: body)))
+                            wipeP2PData(&body)
+                        }
                     }
+                    if isComplete {
+                        self.finish()
+                    } else {
+                        self.receive()
+                    }
+                } catch {
+                    self.fail(error)
                 }
-                if isComplete {
-                    self.finish()
-                } else {
-                    self.receive()
-                }
-            } catch {
-                self.fail(error)
             }
         }
     }
@@ -327,13 +344,16 @@ private final class P2PNetworkConnection {
     private func scheduleTimeout(after interval: TimeInterval = 30) {
         timeout?.cancel()
         let work = DispatchWorkItem { [weak self] in
-            self?.fail(P2PError.connectionClosed)
+            Task { @MainActor in
+                self?.fail(P2PError.connectionClosed)
+            }
         }
         timeout = work
         DispatchQueue.main.asyncAfter(deadline: .now() + interval, execute: work)
     }
 
     private func fail(_ error: Error) {
+        guard !didClose else { return }
         // Network errors are reduced to safe codes; packet contents and
         // NWError descriptions are never logged by this layer.
         onFailure(error as? P2PError ?? .connectionClosed)
