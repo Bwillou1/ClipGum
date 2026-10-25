@@ -103,6 +103,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 await engine.updateConfiguration(configuration)
             }
         }
+        preferences.onLoadModel = { [weak self] identifier in
+            self?.loadModelByIdentifier(identifier)
+        }
     }
 
     func applicationWillFinishLaunching(_ notification: Notification) {
@@ -113,6 +116,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         menuBarController = MenuBarController(
             cleanAction: { [weak self] in
                 self?.handleExplicitUserTrigger()
+            },
+            chooseDefaultAction: { [weak self] in
+                self?.loadDefaultModel()
             },
             chooseMLXAction: { [weak self] in
                 self?.chooseModel(backend: .mlx)
@@ -660,6 +666,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             : ModelIdentifier.gguf(file: url)
         selectedModelIdentifier = identifier
 
+        modelLoadTask = Task { @MainActor [weak self] in
+            guard let self else {
+                return
+            }
+            defer {
+                self.modelLoadTask = nil
+            }
+            do {
+                try await self.inferenceEngine.loadModel(identifier: identifier)
+            } catch {
+                if !(error is CancellationError) {
+                    self.presentModelMessage(self.userFacingMessage(for: error))
+                }
+            }
+        }
+    }
+
+    func loadDefaultModel() {
+        let defaultId = "hf:\(ModelIdentifier.defaultHuggingFaceRepo)"
+        loadModelByIdentifier(defaultId)
+    }
+
+    func loadModelByIdentifier(_ identifier: String) {
+        guard inferenceTask == nil, modelLoadTask == nil else {
+            presentModelMessage("Wait for the current model operation to finish, or Cancel the active transformation.")
+            return
+        }
+        selectedModelIdentifier = identifier
         modelLoadTask = Task { @MainActor [weak self] in
             guard let self else {
                 return

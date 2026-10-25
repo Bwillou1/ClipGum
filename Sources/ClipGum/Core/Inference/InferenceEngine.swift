@@ -22,6 +22,7 @@ protocol ManagedInferenceEngine: InferenceEngine {
 enum InferenceBackendKind: String, Sendable {
     case mlx = "MLX"
     case gguf = "GGUF"
+    case api = "API"
 }
 
 enum InferenceRuntimeStatus: Equatable, Sendable {

@@ -6,6 +6,7 @@ import Foundation
 final class MenuBarController: NSObject {
     private let statusItem: NSStatusItem
     private let cleanAction: () -> Void
+    private let chooseDefaultAction: () -> Void
     private let chooseMLXAction: () -> Void
     private let chooseGGUFAction: () -> Void
     private let unloadModelAction: () -> Void
@@ -21,6 +22,7 @@ final class MenuBarController: NSObject {
 
     init(
         cleanAction: @escaping () -> Void,
+        chooseDefaultAction: @escaping () -> Void,
         chooseMLXAction: @escaping () -> Void,
         chooseGGUFAction: @escaping () -> Void,
         unloadModelAction: @escaping () -> Void,
@@ -29,6 +31,7 @@ final class MenuBarController: NSObject {
     ) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         self.cleanAction = cleanAction
+        self.chooseDefaultAction = chooseDefaultAction
         self.chooseMLXAction = chooseMLXAction
         self.chooseGGUFAction = chooseGGUFAction
         self.unloadModelAction = unloadModelAction
@@ -53,6 +56,9 @@ final class MenuBarController: NSObject {
 
     private func configure() {
         statusItem.button?.image = NSImage(
+            systemSymbolName: "eraser.fill",
+            accessibilityDescription: "ClipGum"
+        ) ?? NSImage(
             systemSymbolName: "doc.on.clipboard",
             accessibilityDescription: "ClipGum"
         )
@@ -73,6 +79,10 @@ final class MenuBarController: NSObject {
         inferenceStatusMenuItem.isEnabled = false
         menu.addItem(inferenceStatusMenuItem)
         menu.addItem(makeItem(
+            title: "Load Default Model (Bonsai 4B MLX)",
+            action: #selector(chooseDefaultSelected)
+        ))
+        menu.addItem(makeItem(
             title: "Choose MLX Model Folder…",
             action: #selector(chooseMLXSelected)
         ))
@@ -88,7 +98,7 @@ final class MenuBarController: NSObject {
         unloadMenuItem = unloadItem
         menu.addItem(unloadItem)
         menu.addItem(makeItem(
-            title: "Inference Settings…",
+            title: "Inference & Model Settings…",
             action: #selector(openSettingsSelected)
         ))
         menu.addItem(.separator())
@@ -139,6 +149,10 @@ final class MenuBarController: NSObject {
 
     @objc private func cleanMenuItemSelected() {
         cleanAction()
+    }
+
+    @objc private func chooseDefaultSelected() {
+        chooseDefaultAction()
     }
 
     @objc private func chooseMLXSelected() {

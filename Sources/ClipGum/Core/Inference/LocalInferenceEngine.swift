@@ -10,6 +10,7 @@ actor LocalInferenceEngine: ManagedInferenceEngine {
     private var configuration: InferenceConfiguration
     private let mlxFactory: BackendFactory
     private let ggufFactory: BackendFactory
+    private let apiFactory: BackendFactory
 
     private var backend: (any ManagedInferenceEngine)?
     private var backendKind: InferenceBackendKind?
@@ -25,11 +26,13 @@ actor LocalInferenceEngine: ManagedInferenceEngine {
     init(
         configuration: InferenceConfiguration,
         mlxFactory: @escaping BackendFactory = { MLXInferenceEngine(configuration: $0) },
-        ggufFactory: @escaping BackendFactory = { GGUFInferenceEngine(configuration: $0) }
+        ggufFactory: @escaping BackendFactory = { GGUFInferenceEngine(configuration: $0) },
+        apiFactory: @escaping BackendFactory = { APIInferenceEngine(configuration: $0) }
     ) {
         self.configuration = configuration
         self.mlxFactory = mlxFactory
         self.ggufFactory = ggufFactory
+        self.apiFactory = apiFactory
     }
 
     func setStatusHandler(_ handler: @escaping StatusHandler) {
@@ -71,9 +74,15 @@ actor LocalInferenceEngine: ManagedInferenceEngine {
 
         let kind = modelIdentifier.backend
         emit(.loading(kind))
-        let newBackend = kind == .mlx
-            ? mlxFactory(configuration)
-            : ggufFactory(configuration)
+        let newBackend: any ManagedInferenceEngine
+        switch kind {
+        case .mlx:
+            newBackend = mlxFactory(configuration)
+        case .gguf:
+            newBackend = ggufFactory(configuration)
+        case .api:
+            newBackend = apiFactory(configuration)
+        }
         do {
             try await newBackend.loadModel(identifier: identifier)
             backend = newBackend

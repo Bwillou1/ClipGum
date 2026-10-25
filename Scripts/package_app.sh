@@ -14,6 +14,9 @@ rm -rf "$APP_DIR"
 mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources" "$APP_DIR/Contents/Frameworks"
 cp "$BIN_DIR/ClipGum" "$APP_DIR/Contents/MacOS/ClipGum"
 cp "$ROOT/Resources/Info.plist" "$APP_DIR/Contents/Info.plist"
+if [[ -f "$ROOT/Resources/AppIcon.icns" ]]; then
+  cp "$ROOT/Resources/AppIcon.icns" "$APP_DIR/Contents/Resources/AppIcon.icns"
+fi
 
 if [[ -n "${VERSION:-}" ]]; then
   plutil -replace CFBundleShortVersionString -string "$VERSION" "$APP_DIR/Contents/Info.plist"
@@ -58,6 +61,19 @@ if [[ -z "$SPARKLE_FRAMEWORK" ]]; then
 fi
 [[ -d "$SPARKLE_FRAMEWORK" ]] || { echo "Unable to locate Sparkle.framework; run swift package resolve" >&2; exit 1; }
 ditto "$SPARKLE_FRAMEWORK" "$APP_DIR/Contents/Frameworks/Sparkle.framework"
+
+LLAMA_FRAMEWORK="${LLAMA_FRAMEWORK:-}"
+if [[ -z "$LLAMA_FRAMEWORK" ]]; then
+  while IFS= read -r candidate; do
+    case "$candidate" in
+      *llama.xcframework/macos-arm64*/*) LLAMA_FRAMEWORK="$candidate"; break ;;
+    esac
+    [[ -n "$LLAMA_FRAMEWORK" ]] || LLAMA_FRAMEWORK="$candidate"
+  done < <(find "$ROOT/.build/artifacts" -type d -name 'llama.framework' -print 2>/dev/null | sort)
+fi
+if [[ -d "$LLAMA_FRAMEWORK" ]]; then
+  ditto "$LLAMA_FRAMEWORK" "$APP_DIR/Contents/Frameworks/llama.framework"
+fi
 
 RPATH_REPORT="$(otool -l "$APP_DIR/Contents/MacOS/ClipGum")"
 if [[ "$RPATH_REPORT" != *'@executable_path/../Frameworks'* ]]; then

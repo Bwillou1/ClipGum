@@ -25,6 +25,28 @@ actor MLXInferenceEngine: ManagedInferenceEngine {
         else {
             throw InferenceEngineError.invalidIdentifier
         }
+
+        if let repo = identifier.repoOrModelName {
+            if loadedIdentifier == identifier.rawValue, container != nil {
+                return
+            }
+            unloadModelResources()
+            configureMemoryLimits()
+            do {
+                let loaded = try await LLMModelFactory.shared.loadContainer(
+                    configuration: ModelConfiguration(id: repo)
+                )
+                container = loaded
+                loadedIdentifier = identifier.rawValue
+                return
+            } catch {
+                container = nil
+                loadedIdentifier = nil
+                Memory.clearCache()
+                throw InferenceErrorClassifier.classify(error)
+            }
+        }
+
         if loadedIdentifier == ModelIdentifier.mlx(directory: identifier.localURL), container != nil {
             return
         }
