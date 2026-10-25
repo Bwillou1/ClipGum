@@ -21,43 +21,43 @@ struct RadialPaletteView: View {
 
     private let items: [RadialPaletteActionItem] = [
         RadialPaletteActionItem(
-            title: "Clean & Paste",
-            subtitle: "Redact & ⌘V",
+            title: "Nettoyer & Coller",
+            subtitle: "Secrets & ⌘V",
             icon: "sparkles",
             color: .pink,
             action: .pasteCleaned
         ),
         RadialPaletteActionItem(
-            title: "Bonsai AI",
-            subtitle: "Smart Correct",
+            title: "Bonsai IA",
+            subtitle: "Correction Locale",
             icon: "cpu",
             color: .purple,
             action: .runTransformation(.correction)
         ),
         RadialPaletteActionItem(
-            title: "Table Convert",
-            subtitle: "CSV / Markdown",
+            title: "Tableau CSV",
+            subtitle: "Markdown / CSV",
             icon: "tablecells",
             color: .blue,
             action: .runTransformation(.convertTable)
         ),
         RadialPaletteActionItem(
-            title: "Paste Original",
-            subtitle: "Unchanged ⌘V",
+            title: "Coller Original",
+            subtitle: "Tel quel ⌘V",
             icon: "doc.on.clipboard",
             color: .gray,
             action: .pasteOriginal
         ),
         RadialPaletteActionItem(
             title: "Share-Ready",
-            subtitle: "Anonymize IDs",
+            subtitle: "Anonymiser IDs",
             icon: "lock.shield",
             color: .teal,
             action: .runTransformation(.shareReady)
         ),
         RadialPaletteActionItem(
-            title: "Secret Scrub",
-            subtitle: "Scrub Tokens",
+            title: "Masquer Secrets",
+            subtitle: "Purger Clés",
             icon: "eye.slash",
             color: .orange,
             action: .runTransformation(.secretScrub)

@@ -23,7 +23,14 @@ enum SmartPasteAction: String, CaseIterable, Identifiable, Sendable {
 
     var id: String { rawValue }
 
+    var isFrench: Bool {
+        Locale.preferredLanguages.first?.hasPrefix("fr") ?? true
+    }
+
     var title: String {
+        if isFrench {
+            return frenchTitle
+        }
         switch self {
         case .clean: return "Clean Plain Text + Redact"
         case .repairPDF: return "PDF Line-Wrap Repair"
@@ -44,6 +51,30 @@ enum SmartPasteAction: String, CaseIterable, Identifiable, Sendable {
         case .rewrite: return "Rewrite (Local LLM)"
         case .slackSummary: return "Slack / Chat Summary (Local LLM)"
         case .tableToCSV: return "Table to CSV (Local LLM)"
+        }
+    }
+
+    var frenchTitle: String {
+        switch self {
+        case .clean: return "Nettoyer & Masquer les Secrets"
+        case .repairPDF: return "Réparer les Retours PDF"
+        case .sanitizeRichText: return "Nettoyer le Texte Enrichi"
+        case .urlClean: return "Purger les Traqueurs d'URL"
+        case .secretScrub: return "Masquer les Secrets (Regex)"
+        case .shareReady: return "Share-Ready (Anonymiser)"
+        case .restoreIdentifiers: return "Restaurer Identifiants Originaux"
+        case .convertTable: return "Convertir Tableau (CSV / Markdown)"
+        case .formatJSON: return "Formater JSON (Pretty)"
+        case .minifyJSON: return "Minifier JSON"
+        case .jsonToTypeScript: return "JSON vers TypeScript"
+        case .scrubLogs: return "Nettoyer Logs / Stack Trace"
+        case .inspectBash: return "Inspecter Commande Bash"
+        case .explainBash: return "Expliquer Bash (IA Locale)"
+        case .correction: return "Correction Orthographe & Grammaire"
+        case .professionalEmail: return "Courriel Professionnel (IA)"
+        case .rewrite: return "Réécriture Professionnelle (IA)"
+        case .slackSummary: return "Résumé Réunion / Slack (IA)"
+        case .tableToCSV: return "Tableau vers CSV"
         }
     }
 

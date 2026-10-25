@@ -43,6 +43,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var modelAccess: SecurityScopedModelAccess?
     private let p2pHandoff: P2PHandoffController
     private var p2pWindow: NSWindow?
+    private var settingsWindow: NSWindow?
+    private var inspectorWindow: NSWindow?
 
     override init() {
         let preferences = InferencePreferences()
@@ -112,6 +114,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         _ = NSApp.setActivationPolicy(.accessory)
     }
 
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        handleExplicitUserTrigger()
+        return true
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         menuBarController = MenuBarController(
             cleanAction: { [weak self] in
@@ -135,10 +142,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             openSettingsAction: { [weak self] in
                 self?.openInferenceSettings()
             },
+            openInspectorAction: { [weak self] in
+                self?.openLiveInspector()
+            },
             quitAction: {
                 NSApp.terminate(nil)
             }
         )
+
+        // When launched directly from Finder or Spotlight, immediately present the palette
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
+            self?.handleExplicitUserTrigger()
+        }
 
         Task {
             await inferenceEngine.setStatusHandler { [weak self] status in
@@ -290,8 +305,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 currentPreview = nil
                 showPalette(.chain(chainSession), radial: radial)
             } else {
-                let preview = PalettePreview(deterministicResult: cleaner.clean(original))
+                let startTime = CFAbsoluteTimeGetCurrent()
+                let cleanResult = cleaner.clean(original)
+                let elapsedMs = (CFAbsoluteTimeGetCurrent() - startTime) * 1000.0
+                let preview = PalettePreview(deterministicResult: cleanResult)
                 currentPreview = preview
+
+                let secretsCount = cleanResult.matches.filter { $0.rule.category == .secret }.count
+                let trackersCount = cleanResult.matches.filter { $0.rule.category == .tracker }.count
+                let detectedType = original.hasPrefix("http://") || original.hasPrefix("https://") ? "URL Traquée" :
+                                   original.contains("{") && original.contains("}") ? "JSON" :
+                                   original.contains("\t") || original.contains("|") ? "Tableau" :
+                                   secretsCount > 0 ? "Secrets / Clés" : "Texte Brut"
+
+                LiveInspectorEngine.shared.record(
+                    trigger: radial ? "⌘⌥V Roue Radiale" : "⌘⇧V Raccourci",
+                    contentType: detectedType,
+                    original: original,
+                    cleaned: cleanResult.cleanedText,
+                    trackersRemoved: trackersCount,
+                    secretsRedacted: secretsCount,
+                    latencyMs: elapsedMs,
+                    actionName: "Règles Déterministes"
+                )
+
                 showPalette(.preview(preview), document: document, appProfile: appProfile, radial: radial)
             }
         } catch {
@@ -526,7 +563,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             return
         }
         guard let selectedModelIdentifier else {
-            restoreDeterministic(message: InferenceEngineError.modelNotLoaded.localizedDescription)
+            restoreDeterministic(message: "✓ Nettoyé avec les règles déterministes. (Optionnel : Chargez un modèle IA dans les Réglages pour la reformulation générative)")
             return
         }
 
@@ -870,9 +907,62 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
     }
 
-    private func openInferenceSettings() {
+    func openInferenceSettings() {
+        if let window = settingsWindow {
+            NSApp.activate(ignoringOtherApps: true)
+            window.makeKeyAndOrderFront(nil)
+            return
+        }
+        let rootView = PublicBetaSettingsView(
+            inference: inferencePreferences,
+            updates: updateManager,
+            diagnostics: diagnostics,
+            policy: enterprisePolicy,
+            rules: customRules,
+            onCopyDiagnostics: { [weak self] text in
+                self?.copyDiagnosticsPayload(text) ?? false
+            },
+            onClearAllData: { [weak self] in
+                self?.clearAllData()
+            },
+            onReplayOnboarding: { [weak self] in
+                self?.replayOnboarding()
+            }
+        )
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 880, height: 680),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "ClipGum — Réglages & Modèles"
+        window.contentViewController = NSHostingController(rootView: rootView)
+        window.isReleasedWhenClosed = false
+        window.center()
+        settingsWindow = window
         NSApp.activate(ignoringOtherApps: true)
-        _ = NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+        window.makeKeyAndOrderFront(nil)
+    }
+
+    func openLiveInspector() {
+        if let window = inspectorWindow {
+            NSApp.activate(ignoringOtherApps: true)
+            window.makeKeyAndOrderFront(nil)
+            return
+        }
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 840, height: 560),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "ClipGum — Inspecteur & Journal d'Audit en Direct"
+        window.contentViewController = NSHostingController(rootView: LiveInspectorView())
+        window.isReleasedWhenClosed = false
+        window.center()
+        inspectorWindow = window
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
     }
 
     private func userFacingMessage(for error: Error) -> String {

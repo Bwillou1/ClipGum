@@ -12,6 +12,7 @@ final class MenuBarController: NSObject {
     private let chooseGGUFAction: () -> Void
     private let unloadModelAction: () -> Void
     private let openSettingsAction: () -> Void
+    private let openInspectorAction: () -> Void
     private let quitAction: () -> Void
 
     private let inferenceStatusMenuItem = NSMenuItem(
@@ -29,6 +30,7 @@ final class MenuBarController: NSObject {
         chooseGGUFAction: @escaping () -> Void,
         unloadModelAction: @escaping () -> Void,
         openSettingsAction: @escaping () -> Void,
+        openInspectorAction: @escaping () -> Void,
         quitAction: @escaping () -> Void
     ) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
@@ -39,6 +41,7 @@ final class MenuBarController: NSObject {
         self.chooseGGUFAction = chooseGGUFAction
         self.unloadModelAction = unloadModelAction
         self.openSettingsAction = openSettingsAction
+        self.openInspectorAction = openInspectorAction
         self.quitAction = quitAction
         super.init()
         configure()
@@ -109,6 +112,10 @@ final class MenuBarController: NSObject {
         unloadItem.isEnabled = false
         unloadMenuItem = unloadItem
         menu.addItem(unloadItem)
+        menu.addItem(makeItem(
+            title: "Inspecteur & Journal en direct… (⌘L)",
+            action: #selector(openInspectorSelected)
+        ))
         menu.addItem(makeItem(
             title: "Inference & Model Settings…",
             action: #selector(openSettingsSelected)
@@ -185,6 +192,10 @@ final class MenuBarController: NSObject {
 
     @objc private func openSettingsSelected() {
         openSettingsAction()
+    }
+
+    @objc private func openInspectorSelected() {
+        openInspectorAction()
     }
 
     @objc private func quitMenuItemSelected() {
