@@ -10,7 +10,7 @@ final class MobileHandoffModel: ObservableObject {
     @Published private(set) var receivedText = ""
     @Published private(set) var running = false
 
-    private let service = LocalP2PService()
+    private let service: LocalP2PService
     private let initialText: String
     private var pendingText: String?
     private var sendStarted = false
@@ -18,6 +18,8 @@ final class MobileHandoffModel: ObservableObject {
     var canSend: Bool { !initialText.isEmpty }
 
     init(initialText: String) {
+        let service = LocalP2PService()
+        self.service = service
         self.initialText = initialText
         service.onDevicesChanged = { [weak self] in self?.devices = $0 }
         service.onPairingCode = { [weak self] in

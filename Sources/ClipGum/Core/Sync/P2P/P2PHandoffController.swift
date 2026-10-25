@@ -20,7 +20,8 @@ final class P2PHandoffController: ObservableObject {
     private var pendingText: String?
     private var sendInitiated = false
 
-    init(service: LocalP2PService = LocalP2PService()) {
+    init(service: LocalP2PService? = nil) {
+        let service = service ?? LocalP2PService()
         self.service = service
         service.onDevicesChanged = { [weak self] in self?.devices = $0 }
         service.onPairingCode = { [weak self] code in
