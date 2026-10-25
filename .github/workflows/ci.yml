@@ -1,0 +1,131 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test-and-package:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select an SDK with NSPasteboard.accessBehavior
+        run: |
+          sudo xcode-select -s /Applications/Xcode_16.3.app/Contents/Developer
+          xcodebuild -version
+      - name: Resolve pinned dependencies
+        run: |
+          swift package resolve
+          cat Package.resolved
+          swift build --target LlamaSwift
+      - name: Validate release scripts and SBOM
+        shell: bash
+        run: |
+          set -euo pipefail
+          for script in Build/*.sh Scripts/package_app.sh; do bash -n "$script"; done
+          python3 -m json.tool Build/Models/manifest.schema.json >/dev/null
+          python3 -m json.tool Build/SBOM.json >/dev/null
+          python3 Build/generate_sbom.py --output /tmp/ClipGum-SBOM.json
+          python3 -m json.tool /tmp/ClipGum-SBOM.json >/dev/null
+      - name: Validate Phase 7 contracts
+        run: ./Build/validate_phase7.sh
+      - name: Build and smoke-test CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          exec 3>&1 4>&2
+          exec > /tmp/clipgum-cli-step.log 2>&1
+          report_cli_failure() {
+            local line_number="$1"
+            local status="$2"
+            printf '::error::CLI smoke failed near line %s (exit %s).\n' "$line_number" "$status" >&4
+            {
+              grep -E 'error:|fatal error|CLI stress|AssertionError|CalledProcessError|TimeoutExpired|Traceback|secrets survived|line count changed|fixture did not|tracking parameters survived|module' /tmp/clipgum-cli-step.log || true
+            } | tail -n 30 | while IFS= read -r line; do
+              line=${line//$'\r'/}
+              line=${line//'%'/'%25'}
+              printf '::error::%s\n' "$line" >&4
+            done
+          }
+          trap 'report_cli_failure "$LINENO" "$?"' ERR
+          swift build --configuration release --product clipgum
+          BIN_DIR="$(swift build --configuration release --show-bin-path)"
+          CLI_BIN="$BIN_DIR/clipgum"
+          if [[ ! -x "$CLI_BIN" ]]; then CLI_BIN="$BIN_DIR/clipgum-cli"; fi
+          [[ -x "$CLI_BIN" ]]
+          export CLI_BIN
+          printf 'Using CLI binary: %s\n' "$CLI_BIN"
+          printf 'token=Abcd1234efgh5678\n' | "$CLI_BIN" clean-secrets --raw > /tmp/clipgum-cli-smoke.txt
+          grep -q 'token=\[REDACTED\]' /tmp/clipgum-cli-smoke.txt
+          ! grep -q 'Abcd1234efgh5678' /tmp/clipgum-cli-smoke.txt
+          printf '{"name":"ClipGum","count":1}\n' | "$CLI_BIN" json-to-ts --raw > /tmp/clipgum-cli-ts.txt
+          grep -q 'export type Root' /tmp/clipgum-cli-ts.txt
+          printf 'token=Abcd1234efgh5678 https://example.com/?utm_source=x&id=1\n' | "$CLI_BIN" sanitize-text --raw > /tmp/clipgum-cli-sanitize.txt
+          ! grep -q 'Abcd1234efgh5678' /tmp/clipgum-cli-sanitize.txt
+          ! grep -q 'utm_source' /tmp/clipgum-cli-sanitize.txt
+          python3 - <<'PY'
+          import os
+          import subprocess
+          line = 'token=Abcd1234efgh5678 https://example.com/?utm_source=x&id=1\n'
+          payload = line * ((11 * 1024 * 1024) // len(line) + 1)
+          print(f'CLI stress input bytes: {len(payload.encode())}', flush=True)
+          result = subprocess.run(
+              [os.environ['CLI_BIN'], 'sanitize-text', '--raw'],
+              input=payload, text=True, capture_output=True, check=True, timeout=45,
+          )
+          print(f'CLI stress output bytes: {len(result.stdout.encode())}', flush=True)
+          secret_occurrences = result.stdout.count('Abcd1234efgh5678')
+          tracking_occurrences = result.stdout.count('utm_source')
+          print(f'CLI stress surviving secret/tracking occurrences: {secret_occurrences}/{tracking_occurrences}', flush=True)
+          assert len(payload.encode()) > 10 * 1024 * 1024, 'fixture did not exceed 10 MiB'
+          assert result.stdout.count('\n') == payload.count('\n'), 'line count changed'
+          assert secret_occurrences == 0, f'{secret_occurrences} secrets survived sanitization'
+          assert tracking_occurrences == 0, f'{tracking_occurrences} tracking parameters survived sanitization'
+          print('CLI large-input assertions passed', flush=True)
+          PY
+      - name: Run unit tests
+        shell: bash
+        run: |
+          set -o pipefail
+          set +e
+          swift test 2>&1 | tee /tmp/clipgum-swift-test.log
+          status=${PIPESTATUS[0]}
+          if [[ $status -ne 0 ]]; then
+            grep -E 'error:|XCTAssert|failed|Fatal error' /tmp/clipgum-swift-test.log \
+              | sort -u \
+              | head -n 40 \
+              | while IFS= read -r line; do
+                  line=${line//$'\r'/}
+                  line=${line//'%'/'%25'}
+                  printf '::error::%s\n' "$line"
+                done
+            tail -n 80 /tmp/clipgum-swift-test.log \
+              | while IFS= read -r line; do
+                  line=${line//$'\r'/}
+                  line=${line//'%'/'%25'}
+                  printf '::error::%s\n' "$line"
+                done
+          fi
+          exit "$status"
+      - name: Validate packaging script
+        run: bash -n Scripts/package_app.sh
+      - name: Build app bundle
+        shell: bash
+        run: |
+          set -o pipefail
+          set +e
+          ./Scripts/package_app.sh 2>&1 | tee /tmp/clipgum-package.log
+          status=${PIPESTATUS[0]}
+          if [[ $status -ne 0 ]]; then
+            tail -n 50 /tmp/clipgum-package.log \
+              | while IFS= read -r line; do
+                  line=${line//$'\r'/}
+                  line=${line//'%'/'%25'}
+                  printf '::error::%s\n' "$line"
+                done
+          fi
+          exit "$status"
+      - name: Validate development distribution policy
+        run: ./Build/validate_distribution.sh build/ClipGum.app --development
+      - name: Verify Sparkle rejects a tampered archive
+        run: ./Build/test_sparkle_tamper.sh

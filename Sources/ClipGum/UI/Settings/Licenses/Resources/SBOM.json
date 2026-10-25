@@ -1,0 +1,256 @@
+{
+  "bomFormat": "CycloneDX",
+  "components": [
+    {
+      "bom-ref": "pkg:github/colt3k/argon2-swift@bcf667c8ee59ad6014bdac1474b5e717a0b95844",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/colt3k/argon2-swift"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "name": "Argon2 Swift",
+      "properties": [
+        {
+          "name": "clipgum:gitRevision",
+          "value": "bcf667c8ee59ad6014bdac1474b5e717a0b95844"
+        },
+        {
+          "name": "clipgum:distribution",
+          "value": "vendored source"
+        },
+        {
+          "name": "clipgum:provenance",
+          "value": "Vendor/Argon2/UPSTREAM.md; Swift 6 expression-splitting compatibility patch"
+        }
+      ],
+      "purl": "pkg:github/colt3k/argon2-swift@bcf667c8ee59ad6014bdac1474b5e717a0b95844",
+      "type": "library",
+      "version": "bcf667c8ee59ad6014bdac1474b5e717a0b95844"
+    },
+    {
+      "bom-ref": "pkg:github/ggml-org/llama.cpp@b10549",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/ggml-org/llama.cpp"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "name": "llama.cpp",
+      "properties": [
+        {
+          "name": "clipgum:distribution",
+          "value": "binary xcframework through llama.swift"
+        }
+      ],
+      "purl": "pkg:github/ggml-org/llama.cpp@b10549",
+      "type": "library",
+      "version": "b10549"
+    },
+    {
+      "bom-ref": "pkg:github/mattt/llama.swift@018619bf56f92cc85286150611609f456813826f",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/mattt/llama.swift"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "name": "llama.swift",
+      "properties": [
+        {
+          "name": "clipgum:gitRevision",
+          "value": "018619bf56f92cc85286150611609f456813826f"
+        }
+      ],
+      "purl": "pkg:github/mattt/llama.swift@018619bf56f92cc85286150611609f456813826f",
+      "type": "library",
+      "version": "018619bf56f92cc85286150611609f456813826f"
+    },
+    {
+      "bom-ref": "pkg:github/ml-explore/mlx-swift@0.31.3",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/ml-explore/mlx-swift"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "name": "MLX Swift",
+      "purl": "pkg:github/ml-explore/mlx-swift@0.31.3",
+      "type": "library",
+      "version": "0.31.3"
+    },
+    {
+      "bom-ref": "pkg:github/ml-explore/mlx-swift-lm@2.31.3",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/ml-explore/mlx-swift-lm"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "name": "MLX Swift LM",
+      "purl": "pkg:github/ml-explore/mlx-swift-lm@2.31.3",
+      "type": "library",
+      "version": "2.31.3"
+    },
+    {
+      "bom-ref": "prismml-ternary-bonsai-external",
+      "description": "Optional external model family only; no weights are bundled or relicensed by ClipGum.",
+      "licenses": [
+        {
+          "license": {
+            "name": "NOASSERTION"
+          }
+        }
+      ],
+      "name": "PrismML Ternary Bonsai",
+      "properties": [
+        {
+          "name": "clipgum:bundled",
+          "value": "false"
+        }
+      ],
+      "scope": "optional",
+      "type": "machine-learning-model",
+      "version": "NOASSERTION"
+    },
+    {
+      "bom-ref": "pkg:github/sparkle-project/Sparkle@2.10.0",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/sparkle-project/Sparkle"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "17e28312b8e18ab7cdbbe09a6fb28cc55a5479ec6c371dbc07cdecd2a14fd959"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "name": "Sparkle",
+      "purl": "pkg:github/sparkle-project/Sparkle@2.10.0",
+      "type": "library",
+      "version": "2.10.0"
+    },
+    {
+      "bom-ref": "pkg:github/apple/swift-argument-parser@1.5.0",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/apple/swift-argument-parser"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "name": "Swift Argument Parser",
+      "purl": "pkg:github/apple/swift-argument-parser@1.5.0",
+      "type": "library",
+      "version": "1.5.0"
+    }
+  ],
+  "dependencies": [
+    {
+      "dependsOn": [
+        "pkg:github/apple/swift-argument-parser@1.5.0",
+        "pkg:github/colt3k/argon2-swift@bcf667c8ee59ad6014bdac1474b5e717a0b95844",
+        "pkg:github/mattt/llama.swift@018619bf56f92cc85286150611609f456813826f",
+        "pkg:github/ml-explore/mlx-swift-lm@2.31.3",
+        "pkg:github/ml-explore/mlx-swift@0.31.3",
+        "pkg:github/sparkle-project/Sparkle@2.10.0"
+      ],
+      "ref": "clipgum"
+    },
+    {
+      "dependsOn": [
+        "pkg:github/ggml-org/llama.cpp@b10549"
+      ],
+      "ref": "pkg:github/mattt/llama.swift@018619bf56f92cc85286150611609f456813826f"
+    }
+  ],
+  "metadata": {
+    "component": {
+      "bom-ref": "clipgum",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/Bwillou1/ClipGum"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "name": "ClipGum",
+      "type": "application",
+      "version": "0.1.0"
+    },
+    "properties": [
+      {
+        "name": "clipgum:gitRevision",
+        "value": "b63ce5c9908d372239771706a9fb8003b240b973"
+      },
+      {
+        "name": "clipgum:platform",
+        "value": "macOS 14+ arm64"
+      },
+      {
+        "name": "clipgum:referenceOnly",
+        "value": "Boop and Maccy pattern references; not linked components"
+      }
+    ],
+    "timestamp": "2026-10-25T13:52:29Z"
+  },
+  "serialNumber": "urn:uuid:529a2fb9-7942-539d-b2c3-c70f061e471d",
+  "specVersion": "1.5",
+  "version": 1
+}

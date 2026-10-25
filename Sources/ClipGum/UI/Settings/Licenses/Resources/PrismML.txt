@@ -1,0 +1,7 @@
+PrismML Ternary Bonsai — model attribution
+
+ClipGum can load user-selected local model weights and can verify an explicitly supplied model download manifest. PrismML Ternary Bonsai weights are not bundled with ClipGum.
+
+PrismML and Ternary Bonsai are credited as the upstream model publisher and model family respectively. Model weights, quantizations, and converted artifacts are separate works distributed under the terms of their own upstream model cards and licenses. ClipGum's Apache-2.0 license does not relicense those works.
+
+Before downloading or using a model, review the exact publisher, revision, license, acceptable-use terms, and provenance in the supplied manifest and upstream model card. A SHA-256 match verifies bytes against that manifest; it does not prove publisher identity, model quality, or safety.
