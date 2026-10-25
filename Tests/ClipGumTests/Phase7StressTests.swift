@@ -129,7 +129,7 @@ final class Phase7CoreStressTests: XCTestCase {
             XCTAssertFalse(text.contains("Abcd1234efgh5678"), "secret survived session \(index)")
             XCTAssertFalse(text.contains("utm_source"), "tracker survived session \(index)")
             let acknowledgement = try pair.initiator.receive(try requiredStressFrame(received))
-            XCTAssertTrue(acknowledged.events.contains(where: {
+            XCTAssertTrue(acknowledgement.events.contains(where: {
                 if case .deliveryAcknowledged = $0 { return true }
                 return false
             }), "missing acknowledgement for session \(index)")
