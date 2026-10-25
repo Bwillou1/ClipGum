@@ -4,6 +4,9 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   test-and-package:
     runs-on: macos-15
@@ -129,3 +132,60 @@ jobs:
         run: ./Build/validate_distribution.sh build/ClipGum.app --development
       - name: Verify Sparkle rejects a tampered archive
         run: ./Build/test_sparkle_tamper.sh
+      - name: Create development DMG and Homebrew cask
+        if: github.event_name == 'push' && contains(github.event.head_commit.message, '[dev-release]')
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="0.1.0-dev.${GITHUB_RUN_NUMBER}"
+          DOWNLOAD_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/download/v${VERSION}/ClipGum-${VERSION}.dmg"
+          ./Build/package_development.sh "$VERSION" "$GITHUB_RUN_NUMBER" "$DOWNLOAD_URL"
+      - name: Upload development package
+        if: github.event_name == 'push' && contains(github.event.head_commit.message, '[dev-release]')
+        uses: actions/upload-artifact@v4
+        with:
+          name: clipgum-development-${{ github.run_number }}
+          path: |
+            build/distribution/*.dmg
+            build/distribution/clipgum.rb
+            build/distribution/SHA256SUMS.txt
+            build/distribution/RELEASE_NOTES.md
+          if-no-files-found: error
+          retention-days: 7
+
+  publish-development-prerelease:
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[dev-release]')
+    needs: test-and-package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download verified development package
+        uses: actions/download-artifact@v4
+        with:
+          name: clipgum-development-${{ github.run_number }}
+          path: development-package
+      - name: Verify package checksum before publication
+        working-directory: development-package
+        run: shasum -a 256 -c SHA256SUMS.txt
+      - name: Publish development prerelease
+        working-directory: development-package
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="0.1.0-dev.${GITHUB_RUN_NUMBER}"
+          TAG="v${VERSION}"
+          DMG="ClipGum-${VERSION}.dmg"
+          TITLE="ClipGum ${VERSION} (development)"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$DMG" clipgum.rb SHA256SUMS.txt \
+              --repo "$GITHUB_REPOSITORY" --clobber
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" \
+              --title "$TITLE" --notes-file RELEASE_NOTES.md --prerelease
+          else
+            gh release create "$TAG" "$DMG" clipgum.rb SHA256SUMS.txt \
+              --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease \
+              --title "$TITLE" --notes-file RELEASE_NOTES.md
+          fi
