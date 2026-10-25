@@ -4,7 +4,9 @@
 <dict>
     <key>com.apple.security.app-sandbox</key>
     <true/>
-    <key>com.apple.security.files.user-selected.read-only</key>
+    <!-- User-selected read/write is required only for explicit rule-pack
+         export through NSSavePanel; no broad file-system entitlement is used. -->
+    <key>com.apple.security.files.user-selected.read-write</key>
     <true/>
 
     <!-- Required only for explicit Sparkle checks and verified model downloads.

@@ -20,6 +20,12 @@ struct PrivacyAuditView: View {
                     get: { diagnostics.isEnabled },
                     set: { diagnostics.setEnabled($0) }
                 ))
+                .disabled(diagnostics.isTelemetryLocked)
+                if diagnostics.isTelemetryLocked {
+                    Label("Telemetry is locked off by the managed enterprise policy.", systemImage: "lock.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.orange)
+                }
                 Text("Off by default. Disabling also clears collected values. Data stays in volatile memory and is never transmitted automatically.")
                     .font(.caption)
                     .foregroundStyle(.secondary)

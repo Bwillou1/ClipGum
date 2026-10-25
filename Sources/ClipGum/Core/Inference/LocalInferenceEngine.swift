@@ -1,3 +1,4 @@
+import ClipGumCore
 import Foundation
 
 /// Backend selection, generation serialization, status updates, and idle offload.
@@ -17,7 +18,7 @@ actor LocalInferenceEngine: ManagedInferenceEngine {
     private var lifecycleOperationActive = false
     private var nextGenerationID = 0
     private var activityVersion = 0
-    private var idleTask: Task<Void, Never>?
+    private let memoryCompactor = MemoryCompactor()
     private var status: InferenceRuntimeStatus = .idle
     private var statusHandler: StatusHandler?
 
@@ -52,7 +53,7 @@ actor LocalInferenceEngine: ManagedInferenceEngine {
 
         lifecycleOperationActive = true
         defer { lifecycleOperationActive = false }
-        idleTask?.cancel()
+        memoryCompactor.cancel()
         activityVersion += 1
         if let oldBackend = backend {
             emit(.unloading)
@@ -106,7 +107,7 @@ actor LocalInferenceEngine: ManagedInferenceEngine {
             throw InferenceEngineError.inputTooLarge
         }
 
-        idleTask?.cancel()
+        memoryCompactor.cancel()
         nextGenerationID += 1
         let generationID = nextGenerationID
         activeGeneration = generationID
@@ -174,7 +175,7 @@ actor LocalInferenceEngine: ManagedInferenceEngine {
         }
         lifecycleOperationActive = true
         defer { lifecycleOperationActive = false }
-        idleTask?.cancel()
+        memoryCompactor.cancel()
         activityVersion += 1
         guard let backend else {
             loadedIdentifier = nil
@@ -241,18 +242,13 @@ actor LocalInferenceEngine: ManagedInferenceEngine {
     }
 
     private func scheduleIdleUnload() {
-        idleTask?.cancel()
+        memoryCompactor.cancel()
         guard backend != nil, activeGeneration == nil else {
             return
         }
         let version = activityVersion
         let timeout = configuration.idleUnloadTimeout
-        idleTask = Task { [weak self] in
-            do {
-                try await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
-            } catch {
-                return
-            }
+        memoryCompactor.schedule(after: timeout) { [weak self] in
             await self?.unloadIfIdle(version: version)
         }
     }

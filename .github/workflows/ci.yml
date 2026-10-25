@@ -44,6 +44,28 @@ jobs:
                 done
           fi
           exit "$status"
+      - name: Build and smoke-test CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          swift build --configuration release --product clipgum
+          printf 'token=Abcd1234efgh5678\n' | .build/release/clipgum clean-secrets --raw > /tmp/clipgum-cli-smoke.txt
+          grep -q 'token=\[REDACTED\]' /tmp/clipgum-cli-smoke.txt
+          ! grep -q 'Abcd1234efgh5678' /tmp/clipgum-cli-smoke.txt
+          printf '{"name":"ClipGum","count":1}\n' | .build/release/clipgum json-to-ts --raw > /tmp/clipgum-cli-ts.txt
+          grep -q 'export type Root' /tmp/clipgum-cli-ts.txt
+          python3 - <<'PY'
+          import subprocess
+          line = 'token=Abcd1234efgh5678 https://example.com/?utm_source=x&id=1\n'
+          payload = line * ((11 * 1024 * 1024) // len(line) + 1)
+          result = subprocess.run(
+              ['.build/release/clipgum', 'sanitize-text', '--raw'],
+              input=payload, text=True, capture_output=True, check=True, timeout=45,
+          )
+          assert len(result.stdout) > 10 * 1024 * 1024
+          assert 'Abcd1234efgh5678' not in result.stdout
+          assert 'utm_source' not in result.stdout
+          PY
       - name: Validate packaging script
         run: bash -n Scripts/package_app.sh
       - name: Build app bundle

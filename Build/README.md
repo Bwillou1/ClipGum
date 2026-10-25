@@ -70,7 +70,7 @@ The main app has exactly:
 - Network client for explicit Sparkle checks and explicit verified model downloads.
 - Two temporary Mach lookups for Sparkle's InstallerLauncher (`com.clipgum.ClipGum-spks` and `-spki`).
 
-There are no camera, microphone, location, JIT, unsigned-executable-memory, or library-validation entitlements. Sparkle's downloader XPC is disabled because Sparkle explicitly warns against combining it with main-app network client. Updates and model downloads run in the main app's isolated network boundary; clipboard/inference/paste services have no URL-loading call sites. Nested Sparkle helper/XPC entitlements are preserved during signing rather than replaced with the main app's network entitlement.
+There are no camera, microphone, location, JIT, unsigned-executable-memory, or library-validation entitlements. User-selected read/write access is limited to explicit model selection and rule-pack export through system panels; no broad file-system access is granted. Sparkle's downloader XPC is disabled because Sparkle explicitly warns against combining it with main-app network client. Updates and model downloads run in the main app's isolated network boundary; clipboard/inference/paste services have no URL-loading call sites. Nested Sparkle helper/XPC entitlements are preserved during signing rather than replaced with the main app's network entitlement.
 
 ## Model acquisition manifests
 

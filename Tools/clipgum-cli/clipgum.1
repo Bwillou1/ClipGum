@@ -1,0 +1,61 @@
+.TH CLIPGUM 1 "October 2026" "ClipGum 1.0" "User Commands"
+.SH NAME
+clipgum \- deterministic, local-only text transformations
+.SH SYNOPSIS
+.B clipgum
+.I command
+.RI [ options ]
+.RI [ file ]
+.SH DESCRIPTION
+.B clipgum
+reads UTF-8 text from a named file or standard input and writes the requested transformation to standard output. It does not read the system pasteboard, start a daemon, open a network connection, or invoke a shell. A file input uses mapped data when safe; standard input is consumed in bounded chunks.
+.SH COMMANDS
+.TP
+.B clean-secrets
+Redact API keys, bearer tokens, provider tokens, internal hostnames, and valid IPv4 addresses.
+.TP
+.B sanitize-text
+Strip known URL tracking parameters and redact secrets.
+.TP
+.B strip-urls
+Remove known tracking query parameters while preserving unrelated URL bytes.
+.TP
+.B json-to-ts
+Infer a deterministic TypeScript type from JSON. Use
+.B --root-name
+to select the root identifier.
+.TP
+.B extract-table
+Parse CSV, TSV, or semicolon-delimited text with quoted-field support and emit normalized CSV.
+.SH OPTIONS
+.TP
+.B --raw
+Do not append a trailing newline to raw text output.
+.TP
+.B --diff
+Emit a unified text diff instead of transformed text.
+.TP
+.B --json
+Emit a JSON object containing the operation, output, and change count. Cannot be combined with
+.BR --diff .
+.TP
+.B --locale \fIidentifier\fR
+Set a locale override for locale-aware operations. Current transformations are locale invariant and do not make network locale requests.
+.TP
+.B --root-name \fIname\fR
+Set the TypeScript root identifier for
+.BR json-to-ts .
+.SH EXAMPLES
+.nf
+cat log.txt | clipgum clean-secrets | pbcopy
+clipgum json-to-ts < schema.json
+clipgum sanitize-text --json < note.txt
+clipgum clean-secrets --diff dump.txt
+.fi
+.SH POLICY
+When the managed ForceSecretRedaction preference is true, strict redaction is applied again after the requested transformation and before standard output is written. This protects pipelines that end in pbcopy.
+.SH LIMITS
+Input is limited to 64 MiB and must be UTF-8. JSON and table transforms have a 16 MiB deterministic parser boundary. Startup latency and memory use vary by machine; no universal sub-15 ms claim is made without measurement.
+.SH SEE ALSO
+.BR pbcopy (1),
+.BR pbpaste (1)

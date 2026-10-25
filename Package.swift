@@ -7,7 +7,9 @@ let package = Package(
         .macOS(.v14)
     ],
     products: [
-        .executable(name: "ClipGum", targets: ["ClipGum"])
+        .executable(name: "ClipGum", targets: ["ClipGum"]),
+        .library(name: "ClipGumCore", targets: ["ClipGumCore"]),
+        .executable(name: "clipgum", targets: ["clipgum"])
     ],
     dependencies: [
         // Pinned to the inspected macOS 14-compatible LM-only package layout.
@@ -19,7 +21,8 @@ let package = Package(
             url: "https://github.com/mattt/llama.swift",
             revision: "018619bf56f92cc85286150611609f456813826f"
         ),
-        .package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.10.0")
+        .package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.10.0"),
+        .package(url: "https://github.com/apple/swift-argument-parser", exact: "1.5.0")
     ],
     targets: [
         .executableTarget(
@@ -29,7 +32,8 @@ let package = Package(
                 .product(name: "MLXLLM", package: "mlx-swift-lm"),
                 .product(name: "MLXLMCommon", package: "mlx-swift-lm"),
                 .product(name: "LlamaSwift", package: "llama.swift"),
-                .product(name: "Sparkle", package: "Sparkle")
+                .product(name: "Sparkle", package: "Sparkle"),
+                .target(name: "ClipGumCore")
             ],
             path: "Sources/ClipGum",
             resources: [
@@ -41,9 +45,22 @@ let package = Package(
                 .linkedFramework("Carbon")
             ]
         ),
+        .target(
+            name: "ClipGumCore",
+            path: "Sources/ClipGumCore",
+            linkerSettings: [.linkedFramework("JavaScriptCore")]
+        ),
+        .executableTarget(
+            name: "clipgum",
+            dependencies: [
+                .target(name: "ClipGumCore"),
+                .product(name: "ArgumentParser", package: "swift-argument-parser")
+            ],
+            path: "Tools/clipgum-cli"
+        ),
         .testTarget(
             name: "ClipGumTests",
-            dependencies: ["ClipGum"],
+            dependencies: ["ClipGum", "ClipGumCore"],
             path: "Tests/ClipGumTests"
         )
     ]

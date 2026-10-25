@@ -75,6 +75,15 @@ struct PaletteView: View {
                     .background(Color.green.opacity(0.12))
                     .clipShape(Capsule())
                     .help("Inference is local. Only explicit update checks or model downloads use the network.")
+                ForEach(model.managedPolicyBadges, id: \.self) { badge in
+                    Label(badge, systemImage: "lock.fill")
+                        .font(.caption2.bold())
+                        .foregroundStyle(.orange)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 4)
+                        .background(Color.orange.opacity(0.12))
+                        .clipShape(Capsule())
+                }
                 statusBadge(preview)
             }
 

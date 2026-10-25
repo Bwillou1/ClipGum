@@ -25,6 +25,7 @@ enum LicenseCatalog {
     static let entries: [LicenseEntry] = [
         entry("clipgum", "ClipGum", "ClipGum", "Apache-2.0"),
         entry("sparkle", "Sparkle 2.10.0", "Sparkle", "MIT · signed appcasts and updates"),
+        entry("argument-parser", "Swift Argument Parser 1.5.0", "ArgumentParser", "Apache-2.0 · UNIX CLI parsing"),
         entry("mlx", "MLX", "MLX", "MIT · Apple Silicon local inference"),
         entry("mlx-swift", "MLX Swift", "MLXSwift", "MIT"),
         entry("mlx-lm", "MLX Swift LM", "MLXLM", "MIT"),

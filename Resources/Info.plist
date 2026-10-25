@@ -59,5 +59,31 @@
     <array>
         <string>https</string>
     </array>
+
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key>
+            <string>com.clipgum.ClipGum.deep-link</string>
+            <key>CFBundleURLSchemes</key>
+            <array><string>clipgum</string></array>
+        </dict>
+    </array>
+    <key>NSServices</key>
+    <array>
+        <dict>
+            <key>NSMenuItem</key>
+            <dict>
+                <key>default</key>
+                <string>Clean &amp; Paste with ClipGum</string>
+            </dict>
+            <key>NSMessage</key>
+            <string>cleanAndPasteWithClipGum</string>
+            <key>NSSendTypes</key>
+            <array><string>public.utf8-plain-text</string></array>
+            <key>NSReturnTypes</key>
+            <array><string>public.utf8-plain-text</string></array>
+        </dict>
+    </array>
 </dict>
 </plist>

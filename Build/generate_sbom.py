@@ -15,6 +15,7 @@ KNOWN = {
     "mlx-swift-lm": ("MLX Swift LM", "2.31.3", None, "MIT", "https://github.com/ml-explore/mlx-swift-lm"),
     "llama.swift": ("llama.swift", None, "018619bf56f92cc85286150611609f456813826f", "MIT", "https://github.com/mattt/llama.swift"),
     "sparkle": ("Sparkle", "2.10.0", None, "MIT", "https://github.com/sparkle-project/Sparkle"),
+    "swift-argument-parser": ("Swift Argument Parser", "1.5.0", None, "Apache-2.0", "https://github.com/apple/swift-argument-parser"),
 }
 
 

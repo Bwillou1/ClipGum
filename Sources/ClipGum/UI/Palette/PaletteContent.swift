@@ -137,6 +137,7 @@ final class PaletteModel: ObservableObject {
     @Published var tableFormat: TableOutputFormat = .csv
     @Published var tableDelimiter: TableDelimiter = .comma
     @Published var shareReadyMappingCount = 0
+    @Published var managedPolicyBadges: [String] = []
 
     let availableActions: [SmartPasteAction]
     let suggestedActions: [SmartPasteAction]

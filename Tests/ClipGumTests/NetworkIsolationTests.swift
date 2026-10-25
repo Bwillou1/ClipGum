@@ -117,7 +117,7 @@ final class NetworkIsolationTests: XCTestCase {
         ) as? [String: Any])
         XCTAssertEqual(Set(entitlements.keys), [
             "com.apple.security.app-sandbox",
-            "com.apple.security.files.user-selected.read-only",
+            "com.apple.security.files.user-selected.read-write",
             "com.apple.security.network.client",
             "com.apple.security.temporary-exception.mach-lookup.global-name"
         ])

@@ -10,6 +10,18 @@ Copy normally, press **⌘⇧V**, inspect deterministic or locally generated out
 - **UI:** one `NSStatusItem`, one Carbon global hotkey, one floating `NSPanel`
 - **License:** Apache-2.0 (see [`LICENSE`](LICENSE))
 
+## Phase 6 — GA, extensibility, and ecosystem
+
+Phase 6 adds a shared `ClipGumCore` library and these production surfaces:
+
+- **Custom Rules & Scripts** — Preferences → Rules provides regex and Boop-style `main(input)` JavaScript editing, an off-main-actor playground, and checksummed JSON import/export. JavaScript has no filesystem, network, environment, process, or pasteboard bridge and fails closed without the native 250 ms watchdog. See [`PLUGINS.md`](PLUGINS.md).
+- **CLI** — the standalone `clipgum` executable supports `clean-secrets`, `sanitize-text`, `strip-urls`, `json-to-ts`, and `extract-table`, with stdin piping, mapped file input, `--raw`, `--diff`, `--json`, and `--locale`. Build with `swift build --product clipgum`; see [`Tools/clipgum-cli/clipgum.1`](Tools/clipgum-cli/clipgum.1).
+- **Shortcuts and Services** — native App Intents expose Sanitize Text, Extract Table, Redact Secrets, and Transform with Local Model. The Services menu provides **Clean & Paste with ClipGum** for an explicitly selected text service. Deep links open settings only and never carry content.
+- **Performance** — model idle offload uses a one-shot cancellable compactor, deterministic work has no idle scheduler, and thermal pressure caps or skips local generation.
+- **Enterprise** — read-only CFPreferences policy enforcement covers `DisableExternalLLM`, `ForceSecretRedaction`, `DisableCustomScripts`, and `LockTelemetry`, with managed lock badges in the HUD and Settings. See [`ENTERPRISE.md`](ENTERPRISE.md).
+
+No runtime performance, fresh-profile Shortcuts, real MDM, Developer ID, notarization, or Apple Silicon model outcome is claimed from source or Linux checks alone. The macOS CI suite compiles and tests these surfaces; hardware/profile validation remains a release checklist item.
+
 ## Explicit workflow
 
 1. Copy one plain-text (`public.utf8-plain-text`), HTML (`public.html`), or RTF (`public.rtf`) item in any app.

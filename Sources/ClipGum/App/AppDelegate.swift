@@ -1,4 +1,5 @@
 import AppKit
+import ClipGumCore
 import Foundation
 import SwiftUI
 
@@ -10,12 +11,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let shareReadySession: ShareReadySession
     private let paletteController = PalettePanelController()
     private var chainSession = ChainCopySession()
-    private lazy var pasteService = PasteService(pasteboard: pasteboard)
+    private lazy var pasteService = PasteService(
+        pasteboard: pasteboard,
+        requiresSecretRedaction: { [weak self] in
+            self?.enterprisePolicy.requiresRedactionNow ?? false
+        }
+    )
 
     let inferencePreferences: InferencePreferences
     let updateManager: UpdateManager
     let diagnostics: DiagnosticsEngine
+    let enterprisePolicy: EnterprisePolicyController
+    let customRules: CustomRulesViewModel
     private let inferenceEngine: LocalInferenceEngine
+    private var quickActionServices: QuickActionServicesProvider?
     private let pipeline: SmartPastePipeline
     private let modelDownloadController: ModelDownloadController
 
@@ -37,11 +46,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let preferences = InferencePreferences()
         let engine = LocalInferenceEngine(configuration: preferences.configuration)
         let shareReady = ShareReadySession()
+        let policy = EnterprisePolicyController()
         inferencePreferences = preferences
         inferenceEngine = engine
         shareReadySession = shareReady
+        enterprisePolicy = policy
+        customRules = CustomRulesViewModel(policy: policy)
         updateManager = UpdateManager()
-        diagnostics = DiagnosticsEngine()
+        diagnostics = DiagnosticsEngine(telemetryLocked: policy.telemetryLocked)
         modelDownloadController = ModelDownloadController()
         pipeline = SmartPastePipeline(
             engine: engine,
@@ -102,6 +114,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             try hotKey.registerCommandShiftV()
         } catch {
             presentHotKeyError(error)
+        }
+
+        let services = QuickActionServicesProvider()
+        quickActionServices = services
+        NSApp.servicesProvider = services
+        NSApp.registerServicesMenuSendTypes([.string], returnTypes: [.string])
+        Task {
+            await LocalModelIntentBridge.shared.install { [weak self] input in
+                guard let self else { throw LocalModelIntentError.modelUnavailable }
+                return try await self.transformForIntent(input)
+            }
         }
 
         updateManager.start()
@@ -224,11 +247,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             break
         }
 
+        enterprisePolicy.refresh()
+        diagnostics.applyPolicy(lockTelemetry: enterprisePolicy.telemetryLocked)
         let model = PaletteModel(
             content: content,
             document: document,
             appProfile: appProfile
         )
+        model.managedPolicyBadges = enterprisePolicy.badges
         model.shareReadyMappingCount = shareReadySession.mappingCount
         paletteModel = model
         paletteController.show(
@@ -323,6 +349,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// App Intents entry point. It uses the same validated local pipeline but
+    /// never presents a window or reads a pasteboard.
+    private func transformForIntent(_ input: String) async throws -> String {
+        guard !ThermalBudget.requiresDeterministicFallback(),
+              let selectedModelIdentifier else {
+            throw LocalModelIntentError.modelUnavailable
+        }
+        try await inferenceEngine.loadModel(identifier: selectedModelIdentifier)
+        let stream = try await pipeline.inferenceStream(
+            action: .rewrite,
+            input: input,
+            maxTokens: ThermalBudget.maximumTokens(requested: inferencePreferences.maximumOutputTokens)
+        )
+        for try await event in stream {
+            if case .completed(let result) = event {
+                guard result.validation.canExport, !result.output.isEmpty else {
+                    throw LocalModelIntentError.emptyOutput
+                }
+                return result.output
+            }
+        }
+        throw LocalModelIntentError.emptyOutput
+    }
+
+    func handleDeepLink(_ url: URL) {
+        guard ClipGumDeepLink.destination(for: url) != nil else { return }
+        openInferenceSettings()
+    }
+
     private func runTransformation(_ action: SmartPasteAction) {
         guard let currentPreview, !currentPreview.isStreaming else {
             return
@@ -365,6 +420,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
+        if ThermalBudget.requiresDeterministicFallback() {
+            restoreDeterministic(message: "Thermal pressure is critical. ClipGum kept the deterministic result and skipped local generation.")
+            return
+        }
         guard modelLoadTask == nil else {
             restoreDeterministic(message: "The selected model is already loading. Run again when it is Ready.")
             return
@@ -403,7 +462,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 let stream = try await self.pipeline.inferenceStream(
                     action: action,
                     input: original,
-                    maxTokens: self.inferencePreferences.maximumOutputTokens
+                    maxTokens: ThermalBudget.maximumTokens(
+                        requested: self.inferencePreferences.maximumOutputTokens
+                    )
                 )
                 for try await event in stream {
                     guard self.activeGenerationID == generationID,

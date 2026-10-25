@@ -10,6 +10,7 @@ final class DiagnosticsEngine: ObservableObject {
     private static let maximumLatencySamplesPerFeature = 256
 
     @Published private(set) var isEnabled: Bool
+    @Published private(set) var isTelemetryLocked: Bool
     @Published private(set) var snapshot = DiagnosticsSnapshot(
         features: [:],
         errors: [:],
@@ -23,15 +24,26 @@ final class DiagnosticsEngine: ObservableObject {
     init(
         defaults: UserDefaults = .standard,
         memoryProvider: @escaping () -> UInt64? = { ProcessMemoryUsage.residentBytes() },
-        clock: @escaping () -> Date = { Date() }
+        clock: @escaping () -> Date = { Date() },
+        telemetryLocked: Bool = false
     ) {
         self.defaults = defaults
         self.memoryProvider = memoryProvider
         self.clock = clock
-        isEnabled = defaults.object(forKey: Keys.enabled) as? Bool ?? false
+        isTelemetryLocked = telemetryLocked
+        isEnabled = telemetryLocked ? false : (defaults.object(forKey: Keys.enabled) as? Bool ?? false)
+    }
+
+    func applyPolicy(lockTelemetry: Bool) {
+        isTelemetryLocked = lockTelemetry
+        if lockTelemetry { clearAllData() }
     }
 
     func setEnabled(_ enabled: Bool) {
+        guard !isTelemetryLocked else {
+            clearAllData()
+            return
+        }
         guard enabled else {
             clearAllData()
             return

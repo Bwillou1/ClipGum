@@ -13,6 +13,8 @@ struct ClipGumApp: App {
                 inference: appDelegate.inferencePreferences,
                 updates: appDelegate.updateManager,
                 diagnostics: appDelegate.diagnostics,
+                policy: appDelegate.enterprisePolicy,
+                rules: appDelegate.customRules,
                 onCopyDiagnostics: { [weak appDelegate] text in
                     appDelegate?.copyDiagnosticsPayload(text) ?? false
                 },
@@ -23,6 +25,9 @@ struct ClipGumApp: App {
                     appDelegate?.replayOnboarding()
                 }
             )
+            .onOpenURL { url in
+                appDelegate.handleDeepLink(url)
+            }
         }
     }
 }

@@ -139,11 +139,32 @@
       "purl": "pkg:github/sparkle-project/Sparkle@2.10.0",
       "type": "library",
       "version": "2.10.0"
+    },
+    {
+      "bom-ref": "pkg:github/apple/swift-argument-parser@1.5.0",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/apple/swift-argument-parser"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "name": "Swift Argument Parser",
+      "purl": "pkg:github/apple/swift-argument-parser@1.5.0",
+      "type": "library",
+      "version": "1.5.0"
     }
   ],
   "dependencies": [
     {
       "dependsOn": [
+        "pkg:github/apple/swift-argument-parser@1.5.0",
         "pkg:github/mattt/llama.swift@018619bf56f92cc85286150611609f456813826f",
         "pkg:github/ml-explore/mlx-swift-lm@2.31.3",
         "pkg:github/ml-explore/mlx-swift@0.31.3",
@@ -181,7 +202,7 @@
     "properties": [
       {
         "name": "clipgum:gitRevision",
-        "value": "d140d8db1b1e352745fd44937958a400d9cb3eb9"
+        "value": "3652ea61ecbdc0b3a54a50c15b19b7b74181d33b"
       },
       {
         "name": "clipgum:platform",
@@ -192,9 +213,9 @@
         "value": "Boop and Maccy pattern references; not linked components"
       }
     ],
-    "timestamp": "2026-10-24T20:20:47Z"
+    "timestamp": "2026-10-25T11:41:17Z"
   },
-  "serialNumber": "urn:uuid:1d468bbf-86da-578a-8acd-3247dac0ece1",
+  "serialNumber": "urn:uuid:6dde9619-3a75-570b-96c0-edb469fa679a",
   "specVersion": "1.5",
   "version": 1
 }
