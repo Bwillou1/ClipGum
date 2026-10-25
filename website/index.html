@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ClipGum — Le presse-papiers intelligent pour Mac</title>
-    <meta name="description" content="Nettoyez, anonymisez et sublimez chaque collage sur Mac. Zéro cloud, 100% Apple Silicon, modèle IA local Bonsai 4B MLX, et roue radiale autour de la souris.">
+    <title>ClipGum — The Intelligent Privacy Clipboard for macOS</title>
+    <meta name="description" content="Clean, redact, and elevate every paste on macOS. Zero cloud, 100% on-device Apple Silicon, local Bonsai 4B MLX AI model, and cursor-centered radial wheel.">
     <link rel="icon" type="image/png" href="app-icon.png">
     <style>
         :root {
@@ -104,7 +104,7 @@
         .nav-links {
             display: flex;
             align-items: center;
-            gap: 28px;
+            gap: 24px;
         }
         .nav-links a {
             color: var(--text-secondary);
@@ -116,6 +116,31 @@
         .nav-links a:hover {
             color: var(--text-primary);
         }
+
+        /* Language Switcher */
+        .lang-switch {
+            display: inline-flex;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 20px;
+            padding: 3px 6px;
+            gap: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .lang-switch a {
+            padding: 3px 8px;
+            border-radius: 14px;
+            color: var(--text-secondary) !important;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .lang-switch a.active {
+            background: var(--pink);
+            color: #ffffff !important;
+        }
+
         .nav-cta {
             display: inline-flex;
             align-items: center;
@@ -260,10 +285,10 @@
             transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
         }
         .app-icon-display:hover {
-            transform: scale(1.04) rotate(-1deg);
+            transform: scale(1.05) rotate(2deg);
         }
 
-        /* Section Title */
+        /* Section Headings */
         .section-header {
             text-align: center;
             margin: 100px 0 45px;
@@ -271,22 +296,23 @@
         .section-badge {
             font-size: 12px;
             text-transform: uppercase;
-            letter-spacing: 0.15em;
+            letter-spacing: 0.12em;
             color: var(--pink);
-            font-weight: 800;
-            margin-bottom: 10px;
+            font-weight: 700;
             display: block;
+            margin-bottom: 12px;
         }
         .section-title {
             font-size: clamp(30px, 4vw, 44px);
             font-weight: 800;
             letter-spacing: -0.03em;
+            margin-bottom: 14px;
         }
         .section-desc {
             font-size: 17px;
             color: var(--text-secondary);
-            max-width: 650px;
-            margin: 12px auto 0;
+            max-width: 620px;
+            margin: 0 auto;
         }
 
         /* Interactive Simulator */
@@ -295,33 +321,38 @@
             border: 1px solid var(--border);
             border-radius: 24px;
             padding: 32px;
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
             position: relative;
-            overflow: hidden;
+            backdrop-filter: blur(10px);
         }
         .simulator-tabs {
             display: flex;
             gap: 10px;
-            flex-wrap: wrap;
             margin-bottom: 24px;
-            border-bottom: 1px solid var(--border);
-            padding-bottom: 16px;
+            overflow-x: auto;
+            padding-bottom: 8px;
         }
         .tab-btn {
-            background: transparent;
-            border: 1px solid transparent;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
             color: var(--text-secondary);
-            padding: 8px 16px;
-            border-radius: 10px;
-            font-size: 14px;
+            padding: 10px 18px;
+            border-radius: 12px;
+            font-size: 13.5px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .tab-btn:hover {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.1);
         }
         .tab-btn.active {
-            background: rgba(255, 46, 147, 0.15);
-            color: var(--pink);
-            border-color: rgba(255, 46, 147, 0.4);
+            background: linear-gradient(135deg, rgba(255, 46, 147, 0.2), rgba(0, 240, 255, 0.15));
+            border-color: var(--pink);
+            color: white;
+            box-shadow: 0 0 15px rgba(255, 46, 147, 0.3);
         }
         .simulator-panels {
             display: grid;
@@ -334,49 +365,48 @@
             }
         }
         .sim-panel {
-            background: #0b0f15;
-            border: 1px solid var(--border);
+            background: #090d13;
+            border: 1px solid rgba(255, 255, 255, 0.07);
             border-radius: 16px;
             padding: 20px;
             display: flex;
             flex-direction: column;
+            min-height: 220px;
         }
         .sim-panel-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            margin-bottom: 12px;
             font-size: 12px;
-            font-weight: 700;
+            color: var(--text-muted);
+            font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            margin-bottom: 12px;
-            color: var(--text-muted);
         }
         .sim-tag {
-            padding: 2px 8px;
+            padding: 3px 8px;
             border-radius: 6px;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 700;
         }
-        .tag-raw { background: rgba(239, 68, 68, 0.15); color: #f87171; }
-        .tag-clean { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+        .tag-raw { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+        .tag-clean { background: rgba(16, 185, 129, 0.2); color: #34d399; }
         .sim-content {
             font-family: var(--code-font);
-            font-size: 13.5px;
+            font-size: 13px;
             line-height: 1.6;
-            color: #e2e8f0;
-            white-space: pre-wrap;
+            color: var(--text-primary);
             word-break: break-all;
-            flex-grow: 1;
-            min-height: 130px;
+            white-space: pre-wrap;
+            flex: 1;
         }
         .redacted {
-            background: rgba(255, 46, 147, 0.2);
-            color: var(--pink);
-            padding: 2px 5px;
+            background: rgba(255, 46, 147, 0.25);
+            color: #ff85be;
+            padding: 1px 6px;
             border-radius: 4px;
-            font-weight: 700;
-            border: 1px solid rgba(255, 46, 147, 0.4);
+            font-weight: 600;
         }
         .cleaned-highlight {
             color: var(--cyan);
@@ -388,6 +418,7 @@
             justify-content: center;
             gap: 16px;
             align-items: center;
+            flex-wrap: wrap;
         }
 
         /* Radial Wheel Showcase */
@@ -429,8 +460,8 @@
         }
         .radial-node {
             position: absolute;
-            width: 78px;
-            height: 52px;
+            width: 80px;
+            height: 54px;
             background: #121822;
             border: 1px solid rgba(255, 255, 255, 0.15);
             border-radius: 12px;
@@ -438,7 +469,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            font-size: 9.5px;
+            font-size: 10px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
@@ -449,13 +480,14 @@
             background: rgba(255, 46, 147, 0.2);
             box-shadow: 0 0 16px var(--pink);
         }
-        /* Position 6 radial items */
-        .node-1 { top: 15px; left: 121px; }          /* Top */
-        .node-2 { top: 75px; right: 12px; }          /* Top-Right */
-        .node-3 { bottom: 75px; right: 12px; }       /* Bottom-Right */
-        .node-4 { bottom: 15px; left: 121px; }       /* Bottom */
-        .node-5 { bottom: 75px; left: 12px; }        /* Bottom-Left */
-        .node-6 { top: 75px; left: 12px; }           /* Top-Left */
+
+        /* 6 Nodes positioned on circle (radius ~ 125px) */
+        .node-1 { top: 12px; left: calc(50% - 40px); } /* Top (0°) */
+        .node-2 { top: 68px; right: 10px; }            /* Top Right (60°) */
+        .node-3 { bottom: 68px; right: 10px; }         /* Bottom Right (120°) */
+        .node-4 { bottom: 12px; left: calc(50% - 40px); }/* Bottom (180°) */
+        .node-5 { bottom: 68px; left: 10px; }          /* Bottom Left (240°) */
+        .node-6 { top: 68px; left: 10px; }             /* Top Left (300°) */
 
         /* Feature Grid */
         .feature-grid {
@@ -468,54 +500,43 @@
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: 20px;
-            padding: 32px 28px;
-            transition: transform 0.25s, border-color 0.25s;
-            display: flex;
-            flex-direction: column;
+            padding: 30px;
+            transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
         }
         .feature-card:hover {
             transform: translateY(-4px);
-            border-color: rgba(255, 46, 147, 0.4);
-            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
+            border-color: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
         }
         .feature-icon {
-            width: 48px;
-            height: 48px;
-            border-radius: 14px;
-            background: rgba(255, 46, 147, 0.12);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 22px;
-            color: var(--pink);
-            margin-bottom: 20px;
-            border: 1px solid rgba(255, 46, 147, 0.3);
+            font-size: 30px;
+            margin-bottom: 18px;
+            display: inline-block;
         }
         .feature-card h3 {
-            font-size: 20px;
+            font-size: 19px;
             font-weight: 700;
             margin-bottom: 10px;
             letter-spacing: -0.01em;
         }
         .feature-card p {
+            font-size: 14.5px;
             color: var(--text-secondary);
-            font-size: 15px;
             line-height: 1.6;
-            flex-grow: 1;
         }
 
-        /* Banner to Security */
+        /* Security Portal Callout */
         .security-banner {
-            background: linear-gradient(135deg, rgba(255, 46, 147, 0.12), rgba(0, 240, 255, 0.08));
-            border: 1px solid rgba(255, 46, 147, 0.35);
+            background: linear-gradient(135deg, rgba(255, 46, 147, 0.08) 0%, rgba(0, 240, 255, 0.08) 100%);
+            border: 1px solid rgba(255, 46, 147, 0.3);
             border-radius: 24px;
             padding: 40px;
-            margin: 80px 0 50px;
+            margin: 90px 0 50px;
             display: flex;
-            align-items: center;
             justify-content: space-between;
-            gap: 28px;
+            align-items: center;
             flex-wrap: wrap;
+            gap: 24px;
         }
         .security-banner-text h3 {
             font-size: 24px;
@@ -524,18 +545,17 @@
         }
         .security-banner-text p {
             color: var(--text-secondary);
+            max-width: 600px;
             font-size: 15px;
-            max-width: 620px;
         }
 
         /* Footer */
         footer {
             border-top: 1px solid var(--border);
             padding: 60px 0 40px;
-            margin-top: 100px;
-            background: #07090c;
+            margin-top: 80px;
             color: var(--text-muted);
-            font-size: 14px;
+            font-size: 13.5px;
         }
         .footer-grid {
             display: grid;
@@ -593,12 +613,21 @@
             <span>ClipGum</span>
         </a>
         <div class="nav-links">
-            <a href="#simulateur">Simulateur</a>
-            <a href="#radial">Roue Radiale (⌘⌥V)</a>
-            <a href="#features">Fonctionnalités</a>
-            <a href="security.html">Sécurité & Légal</a>
+            <a href="#simulator">Simulator</a>
+            <a href="#radial">Radial Wheel (⌘⌥V)</a>
+            <a href="#features">Features</a>
+            <a href="security.html">Security & Legal</a>
             <a href="https://github.com/Bwillou1/ClipGum" target="_blank" rel="noopener">GitHub</a>
-            <a href="https://github.com/Bwillou1/ClipGum/releases/latest" class="nav-cta">Télécharger</a>
+
+            <!-- Language Switcher -->
+            <div class="lang-switch">
+                <a href="index.html" class="active">🇺🇸 EN</a>
+                <a href="fr.html">🇫🇷 FR</a>
+            </div>
+
+            <a href="https://github.com/Bwillou1/ClipGum/releases/download/v0.1.0-dev.47/ClipGum-0.1.0-dev.47.dmg" class="nav-cta download-dmg-link">
+                Download DMG
+            </a>
         </div>
     </nav>
 
@@ -608,21 +637,21 @@
         <!-- Hero Section -->
         <section class="hero">
             <div class="hero-badge">
-                <span>✦</span> Nouveau : Menu Radial (⌘⌥V) & Modèle Bonsai 4B MLX
+                <span>✦</span> New: Cursor Radial Wheel (⌘⌥V) & Bonsai 4B MLX AI Model
             </div>
 
             <h1>
-                Le presse-papiers Mac qui <span class="gradient-text">nettoie, protège</span><br>et sublime chaque collage.
+                The Mac clipboard that <span class="gradient-text">cleans, protects</span><br>and elevates every paste.
             </h1>
 
             <p>
-                ClipGum ne surveille pas votre historique et n'envoie rien dans le cloud. Il transforme instantanément vos textes, liens traqués, secrets et tableaux directement sur Apple Silicon au moment où vous le décidez.
+                ClipGum never tracks your history and never calls the cloud. It instantly strips tracking parameters, redacts confidential credentials, converts unruly tables, and polishes grammar directly on Apple Silicon the exact moment you paste.
             </p>
 
             <div class="cta-group">
-                <a href="https://github.com/Bwillou1/ClipGum/releases/latest/download/ClipGum-0.1.0-dev.45.dmg" class="btn-primary">
+                <a href="https://github.com/Bwillou1/ClipGum/releases/download/v0.1.0-dev.47/ClipGum-0.1.0-dev.47.dmg" class="btn-primary download-dmg-link" id="hero-download-btn">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                    Télécharger pour macOS (Apple Silicon)
+                    <span>Download ClipGum Pre-release <span class="download-version-tag">(v0.1.0-dev.47)</span></span>
                 </a>
                 <button class="btn-secondary" onclick="copyBrewCommand(this)">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
@@ -632,53 +661,53 @@
 
             <div class="sub-cta-info">
                 <span>✓ macOS 14+ Sonoma & macOS 15+ Sequoia</span>
-                <span>✓ 100% Hors-Ligne</span>
-                <span>✓ Zéro télémétrie</span>
-                <span>✓ Licence Apache 2.0</span>
+                <span>✓ 100% On-Device & Offline</span>
+                <span>✓ Zero Telemetry</span>
+                <span>✓ Apache 2.0 Open Source</span>
             </div>
 
             <div class="hero-visual">
-                <img src="app-icon.png" alt="Icône ClipGum Gomme" class="app-icon-display">
+                <img src="app-icon.png" alt="ClipGum Eraser Icon" class="app-icon-display">
             </div>
         </section>
 
         <!-- Interactive Simulator Section -->
-        <section id="simulateur">
+        <section id="simulator">
             <div class="section-header">
-                <span class="section-badge">Démonstration en direct</span>
-                <h2 class="section-title">Voyez ClipGum en action</h2>
-                <p class="section-desc">Choisissez un exemple ci-dessous pour observer la purification instantanée de votre presse-papiers sans aucun appel cloud.</p>
+                <span class="section-badge">Live Interactive Simulator</span>
+                <h2 class="section-title">See ClipGum in Action</h2>
+                <p class="section-desc">Select an example below to experience instant, zero-cloud purification of dirty clipboard contents.</p>
             </div>
 
             <div class="simulator-box">
                 <div class="simulator-tabs">
-                    <button class="tab-btn active" onclick="selectPreset('urls')">🔗 Liens avec Mouchards & Secrets</button>
-                    <button class="tab-btn" onclick="selectPreset('logs')">🔑 Logs & Clés API d'équipe</button>
-                    <button class="tab-btn" onclick="selectPreset('table')">📊 Tableau Web vers Markdown</button>
-                    <button class="tab-btn" onclick="selectPreset('grammar')">✨ Correction IA Locale (Bonsai 4B)</button>
+                    <button class="tab-btn active" onclick="selectPreset('urls')">🔗 Tracking URLs & Secrets</button>
+                    <button class="tab-btn" onclick="selectPreset('logs')">🔑 Server Logs & API Keys</button>
+                    <button class="tab-btn" onclick="selectPreset('table')">📊 Web Table to Markdown</button>
+                    <button class="tab-btn" onclick="selectPreset('grammar')">✨ On-Device Bonsai 4B AI</button>
                 </div>
 
                 <div class="simulator-panels">
                     <div class="sim-panel">
                         <div class="sim-panel-header">
-                            <span>Presse-papiers copié (Original)</span>
-                            <span class="sim-tag tag-raw">Avant ClipGum</span>
+                            <span>Copied to Clipboard (Raw)</span>
+                            <span class="sim-tag tag-raw">Before ClipGum</span>
                         </div>
-                        <div class="sim-content" id="sim-raw">Chargement...</div>
+                        <div class="sim-content" id="sim-raw">Loading...</div>
                     </div>
                     <div class="sim-panel">
                         <div class="sim-panel-header">
-                            <span>Ce que vous collez (Nettoyé)</span>
-                            <span class="sim-tag tag-clean">Après ClipGum</span>
+                            <span>What You Paste (Purified)</span>
+                            <span class="sim-tag tag-clean">After ClipGum</span>
                         </div>
-                        <div class="sim-content" id="sim-clean">Chargement...</div>
+                        <div class="sim-content" id="sim-clean">Loading...</div>
                     </div>
                 </div>
 
                 <div class="sim-action-bar">
-                    <span style="font-size: 14px; color: var(--text-secondary);">Raccourci clavier : </span>
+                    <span style="font-size: 14px; color: var(--text-secondary);">Keyboard shortcut: </span>
                     <kbd style="background: rgba(255,255,255,0.1); border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; font-weight: 700; font-family: var(--code-font);">⌘⇧V</kbd>
-                    <span style="font-size: 13px; color: var(--cyan); font-weight: 600;">ou autour de votre souris :</span>
+                    <span style="font-size: 13px; color: var(--cyan); font-weight: 600;">or radial wheel under your cursor:</span>
                     <kbd style="background: rgba(255,46,147,0.2); border: 1px solid var(--pink); color: var(--pink); border-radius: 6px; padding: 4px 10px; font-weight: 700; font-family: var(--code-font);">⌘⌥V</kbd>
                 </div>
             </div>
@@ -687,34 +716,34 @@
         <!-- Radial Menu Showcase -->
         <section id="radial">
             <div class="section-header">
-                <span class="section-badge">Expérience utilisateur réinventée</span>
-                <h2 class="section-title">La Roue Radiale : Au bout de vos doigts</h2>
-                <p class="section-desc">Plus besoin de lever les yeux vers la barre des menus. Appuyez sur <strong>⌘⌥V</strong> : un anneau circulaire apparaît instantanément centré autour de votre souris pour déclencher votre action en un geste.</p>
+                <span class="section-badge">Reinvented Ergonomics</span>
+                <h2 class="section-title">The Radial Wheel: At Your Fingertips</h2>
+                <p class="section-desc">Never look up at the menu bar again. Hit <strong>⌘⌥V</strong> anywhere: a smooth, glowing circular ring pops up centered right on your mouse cursor so you can trigger your action in a flick.</p>
             </div>
 
             <div class="radial-showcase">
                 <div class="radial-wheel">
-                    <div class="radial-node node-1" title="Nettoyer et Coller immédiatement">
+                    <div class="radial-node node-1" title="Clean and paste immediately">
                         <span style="color: var(--pink)">✨</span>
                         <span>Clean & Paste</span>
                     </div>
-                    <div class="radial-node node-2" title="Correction ou reformulation avec Bonsai 4B">
+                    <div class="radial-node node-2" title="Proofread or summarize using local Bonsai 4B">
                         <span style="color: #a855f7">🧠</span>
-                        <span>Bonsai IA</span>
+                        <span>Bonsai AI</span>
                     </div>
-                    <div class="radial-node node-3" title="Convertir un tableau web vers CSV ou Markdown">
+                    <div class="radial-node node-3" title="Convert HTML or TSV table to clean CSV / Markdown">
                         <span style="color: var(--cyan)">📊</span>
-                        <span>Tableau CSV</span>
+                        <span>Table / CSV</span>
                     </div>
-                    <div class="radial-node node-4" title="Coller le texte original sans retouche">
+                    <div class="radial-node node-4" title="Paste original unmodified text">
                         <span style="color: #94a3b8">📋</span>
                         <span>Original</span>
                     </div>
-                    <div class="radial-node node-5" title="Anonymiser adresses IP et identifiants internes">
+                    <div class="radial-node node-5" title="Anonymize IP addresses and internal identifiers">
                         <span style="color: #14b8a6">🔒</span>
                         <span>Share-Ready</span>
                     </div>
-                    <div class="radial-node node-6" title="Masquer tokens et clés secrètes">
+                    <div class="radial-node node-6" title="Mask tokens, JWTs, and private keys">
                         <span style="color: #f97316">👁️‍🗨️</span>
                         <span>Secrets</span>
                     </div>
@@ -725,7 +754,7 @@
                     </div>
                 </div>
                 <p style="color: var(--text-secondary); font-size: 14px; margin-top: 20px;">
-                    Survolez les pastilles : l'anneau réagit avec fluidité grâce aux animations natives Swift / Metal.
+                    Hover over each action bubble — rendered with native macOS Metal precision and fluid physics.
                 </p>
             </div>
         </section>
@@ -733,46 +762,46 @@
         <!-- Feature Grid -->
         <section id="features">
             <div class="section-header">
-                <span class="section-badge">Puissance & Sérénité</span>
-                <h2 class="section-title">Tout ce que le presse-papiers devrait être</h2>
-                <p class="section-desc">Conçu pour les développeurs, créateurs et professionnels soucieux de leur confidentialité.</p>
+                <span class="section-badge">Power & Peace of Mind</span>
+                <h2 class="section-title">Everything Clipboard Management Should Be</h2>
+                <p class="section-desc">Crafted for developers, creators, researchers, and privacy-first teams.</p>
             </div>
 
             <div class="feature-grid">
                 <div class="feature-card">
                     <div class="feature-icon">🛡️</div>
-                    <h3>Zéro Cloud, Zéro Mémorisation</h3>
-                    <p>ClipGum ne conserve aucun historique permanent de vos copies. Vos mots de passe et données restent confinés dans la mémoire vive volatile de votre Mac.</p>
+                    <h3>Zero Cloud, Zero History Storage</h3>
+                    <p>ClipGum does not maintain a perpetual logging database of your copy history. Your sensitive passwords and credentials stay in volatile RAM and vanish.</p>
                 </div>
 
                 <div class="feature-card">
                     <div class="feature-icon">🧠</div>
-                    <h3>Modèle IA Local PrismML Bonsai 4B</h3>
-                    <p>Correction grammaticale, résumé de réunions et réécriture d'emails professionnels exécutés localement via Apple MLX en quantification ternaire 2-bit ultra-rapide.</p>
+                    <h3>On-Device PrismML Bonsai 4B AI</h3>
+                    <p>Meeting summaries, tone rephrasing, and grammar correction running locally via Apple MLX in ultra-fast 2-bit ternary quantization. Never leak confidential IP.</p>
                 </div>
 
                 <div class="feature-card">
                     <div class="feature-icon">🔗</div>
-                    <h3>Éradication des Traqueurs d'URL</h3>
-                    <p>Supprime automatiquement les paramètres invasifs (<code>utm_*</code>, <code>fbclid</code>, <code>gclid</code>, <code>mc_eid</code>) tout en préservant l'intégrité de vos liens.</p>
+                    <h3>Instant URL Tracker Purging</h3>
+                    <p>Strips invasive query tokens (<code>utm_*</code>, <code>fbclid</code>, <code>gclid</code>, <code>mc_eid</code>) automatically while strictly maintaining original destination links.</p>
                 </div>
 
                 <div class="feature-card">
                     <div class="feature-icon">🔑</div>
-                    <h3>Masquage Déterministe des Secrets</h3>
-                    <p>Détecte instantanément les tokens GitHub, clés AWS, JWT, clés Stripe et identifiants privés pour les remplacer par <code>[SECRET_REDACTED]</code>.</p>
+                    <h3>Deterministic Secret Redaction</h3>
+                    <p>Instantly recognizes GitHub tokens, AWS keys, Stripe secrets, private keys, and JWTs, safely replacing them with <code>[SECRET_REDACTED]</code> before you hit paste.</p>
                 </div>
 
                 <div class="feature-card">
                     <div class="feature-icon">📊</div>
-                    <h3>Conversion de Tableaux</h3>
-                    <p>Transforme n'importe quel tableau HTML, feuille Excel ou extrait désordonné en Markdown ou CSV propre et prêt à coller dans vos tableurs.</p>
+                    <h3>Structured Table Transformation</h3>
+                    <p>Turn messy web tables, spreadsheets, or TSV snippets into clean, aligned Markdown or CSV formatted for GitHub, Slack, Notion, or terminal docs.</p>
                 </div>
 
                 <div class="feature-card">
                     <div class="feature-icon">⚡</div>
-                    <h3>Connectivité Localhost & API</h3>
-                    <p>En plus de Bonsai 4B, connectez en un clic vos serveurs d'inférence locaux préférés (Ollama, LM Studio, vLLM) ou toute passerelle OpenAI compatible.</p>
+                    <h3>Localhost & Custom API Support</h3>
+                    <p>Seamlessly connect your own local inference engines (Ollama, LM Studio, vLLM) or any OpenAI-compatible endpoint with streaming response support.</p>
                 </div>
             </div>
         </section>
@@ -781,11 +810,11 @@
         <section>
             <div class="security-banner">
                 <div class="security-banner-text">
-                    <h3>Engagement Juridique, RGPD & Licences Libres</h3>
-                    <p>Découvrez notre modèle de menaces, nos garanties de conformité RGPD / HIPAA, notre politique de chiffrement matériel Apple et la totalité des licences open-source (Apache 2.0, MIT, Llama, MLX).</p>
+                    <h3>Enterprise Compliance, GDPR & Open Licenses</h3>
+                    <p>Explore our complete threat model, GDPR/HIPAA compliance guarantees, Apple Secure Enclave hardware alignment, and full open-source license texts.</p>
                 </div>
                 <a href="security.html" class="btn-secondary" style="border-color: var(--pink); color: var(--pink); font-weight: 700;">
-                    Consulter la Charte de Sécurité & Légal →
+                    Read Security & Legal Charter →
                 </a>
             </div>
         </section>
@@ -802,33 +831,34 @@
                         <span style="font-weight: 800; color: var(--text-primary); font-size: 17px;">ClipGum</span>
                     </div>
                     <p style="font-size: 13.5px; line-height: 1.6; max-width: 380px;">
-                        L'utilitaire moderne de presse-papiers pour macOS. Confidentialité par conception, inférence locale Apple Silicon et transformations déterministes.
+                        The modern privacy clipboard utility for macOS. Privacy by design, on-device Apple Silicon neural inference, and deterministic data purification.
                     </p>
                 </div>
                 <div class="footer-col">
                     <h4>Navigation</h4>
                     <ul>
-                        <li><a href="#simulateur">Simulateur en direct</a></li>
-                        <li><a href="#radial">Menu Radial (⌘⌥V)</a></li>
-                        <li><a href="#features">Fonctionnalités</a></li>
-                        <li><a href="security.html">Charte Sécurité & Conformité</a></li>
-                        <li><a href="security.html#licenses">Licences Open-Source</a></li>
+                        <li><a href="#simulator">Live Simulator</a></li>
+                        <li><a href="#radial">Radial Wheel (⌘⌥V)</a></li>
+                        <li><a href="#features">Features</a></li>
+                        <li><a href="security.html">Security & Compliance</a></li>
+                        <li><a href="security.html#licenses">Open Source Licenses</a></li>
+                        <li><a href="fr.html">🇫🇷 Version Française</a></li>
                     </ul>
                 </div>
                 <div class="footer-col">
-                    <h4>Ressources & Dépôt</h4>
+                    <h4>Resources & GitHub</h4>
                     <ul>
-                        <li><a href="https://github.com/Bwillou1/ClipGum" target="_blank" rel="noopener">Code Source GitHub</a></li>
-                        <li><a href="https://github.com/Bwillou1/ClipGum/releases" target="_blank" rel="noopener">Téléchargements & Versions</a></li>
-                        <li><a href="https://huggingface.co/prism-ml/bonsai-image-ternary-4B-mlx-2bit" target="_blank" rel="noopener">Modèle PrismML Bonsai 4B</a></li>
-                        <li><a href="https://github.com/Bwillou1/ClipGum/issues" target="_blank" rel="noopener">Signaler un Bug</a></li>
+                        <li><a href="https://github.com/Bwillou1/ClipGum" target="_blank" rel="noopener">GitHub Source Code</a></li>
+                        <li><a href="https://github.com/Bwillou1/ClipGum/releases" target="_blank" rel="noopener">Releases & Checksums</a></li>
+                        <li><a href="https://huggingface.co/prism-ml/bonsai-image-ternary-4B-mlx-2bit" target="_blank" rel="noopener">PrismML Bonsai 4B Model</a></li>
+                        <li><a href="https://github.com/Bwillou1/ClipGum/issues" target="_blank" rel="noopener">Report an Issue</a></li>
                     </ul>
                 </div>
             </div>
 
             <div class="footer-bottom">
-                <div>© 2026 ClipGum — Publié sous licence libre Apache-2.0. Conçu avec passion pour macOS.</div>
-                <div>macOS, Apple Silicon et Metal sont des marques déposées d'Apple Inc.</div>
+                <div>© 2026 ClipGum — Released under the Apache-2.0 License. Designed with love for macOS.</div>
+                <div>macOS, Apple Silicon, and Metal are trademarks of Apple Inc.</div>
             </div>
         </div>
     </footer>
@@ -837,19 +867,19 @@
         const presets = {
             urls: {
                 raw: "https://shop.acme.corp/product/x100?utm_source=facebook&utm_medium=cpc&fbclid=IwAR29188xYZ991a&session_token=live_tok_9281729381729381&affiliate_id=partner42",
-                clean: "https://shop.acme.corp/product/x100?affiliate_id=partner42\n\n<span class=\"cleaned-highlight\">✓ 2 traqueurs publicitaires retirés (utm_source, fbclid)</span>\n<span class=\"redacted\">[SECRET_REDACTED]</span> session_token masqué avant envoi"
+                clean: "https://shop.acme.corp/product/x100?affiliate_id=partner42\n\n<span class=\"cleaned-highlight\">✓ 2 tracking query params removed (utm_source, fbclid)</span>\n<span class=\"redacted\">[SECRET_REDACTED]</span> session_token safely purged before paste"
             },
             logs: {
                 raw: "2026-10-25 19:12:04 [ERROR] Node 10.0.4.18 failed to sync:\nAWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE\nAWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\nDatabase: postgres://admin:SuperSecretPass123@db.internal.acme:5432/prod",
                 clean: "2026-10-25 19:12:04 [ERROR] Node <span class=\"cleaned-highlight\">[SYNTH_IP_1]</span> failed to sync:\nAWS_ACCESS_KEY_ID=<span class=\"redacted\">[SECRET_REDACTED]</span>\nAWS_SECRET_ACCESS_KEY=<span class=\"redacted\">[SECRET_REDACTED]</span>\nDatabase: postgres://<span class=\"redacted\">[SECRET_REDACTED]</span>@db.internal.acme:5432/prod"
             },
             table: {
-                raw: "ID\tProduit\tPrix\tStock\n1\tMacBook Pro M3\t1999€\t12\n2\tÉcran Studio Display\t1599€\t5\n3\tClavier Magic Keyboard\t149€\t42",
-                clean: "| ID | Produit | Prix | Stock |\n|---|---|---|---|\n| 1 | MacBook Pro M3 | 1999€ | 12 |\n| 2 | Écran Studio Display | 1599€ | 5 |\n| 3 | Clavier Magic Keyboard | 149€ | 42 |\n\n<span class=\"cleaned-highlight\">✓ Converti en Markdown tabulaire standard (Coller dans Notion, GitHub ou Slack)</span>"
+                raw: "ID\tProduct\tPrice\tStock\n1\tMacBook Pro M3\t$1,999\t12\n2\tStudio Display 5K\t$1,599\t5\n3\tMagic Keyboard\t$149\t42",
+                clean: "| ID | Product | Price | Stock |\n|---|---|---|---|\n| 1 | MacBook Pro M3 | $1,999 | 12 |\n| 2 | Studio Display 5K | $1,599 | 5 |\n| 3 | Magic Keyboard | $149 | 42 |\n\n<span class=\"cleaned-highlight\">✓ Converted into standard Markdown table (Paste directly into GitHub, Notion, or Slack)</span>"
             },
             grammar: {
-                raw: "Bonjour M. Tremblay, je vous écrit pour vous dire que le serveur a planter hier soir mais qu'on a tout réparer ce matin avec l'équipe de dev.",
-                clean: "Bonjour M. Tremblay,\n\nJe vous écris pour vous informer que le serveur a rencontré un incident hier soir. L'équipe de développement est intervenue et la situation est désormais entièrement rétablie ce matin.\n\n<span class=\"cleaned-highlight\">✓ Corrigé localement via Bonsai 4B MLX (Zéro cloud, 0.4s)</span>"
+                raw: "Hi team, wanted to let you guys know that our prod cluster broke down last nite but we managed to fix every single server this morning with the oncall.",
+                clean: "Hi team,\n\nI wanted to update you on our production cluster. Following an outage last night, the on-call team responded and all servers are now fully operational.\n\n<span class=\"cleaned-highlight\">✓ Polished locally via Bonsai 4B MLX (Zero cloud, 0.38s latency)</span>"
             }
         };
 
@@ -863,7 +893,7 @@
         function copyBrewCommand(btn) {
             const original = btn.innerHTML;
             navigator.clipboard.writeText('brew install --cask clipgum');
-            btn.innerHTML = '<span>✓ Copié dans le presse-papiers !</span>';
+            btn.innerHTML = '<span>✓ Copied to clipboard!</span>';
             setTimeout(() => {
                 btn.innerHTML = original;
             }, 2500);
@@ -872,6 +902,29 @@
         // Initialize simulator
         document.getElementById('sim-raw').innerText = presets.urls.raw;
         document.getElementById('sim-clean').innerHTML = presets.urls.clean;
+
+        // Auto-fetch latest GitHub pre-release download link
+        (function resolveLatestPreRelease() {
+            fetch('https://api.github.com/repos/Bwillou1/ClipGum/releases')
+                .then(res => res.json())
+                .then(releases => {
+                    if (Array.isArray(releases) && releases.length > 0) {
+                        const latest = releases[0];
+                        const dmgAsset = latest.assets && latest.assets.find(a => a.name.endsWith('.dmg'));
+                        if (dmgAsset && dmgAsset.browser_download_url) {
+                            document.querySelectorAll('.download-dmg-link').forEach(el => {
+                                el.href = dmgAsset.browser_download_url;
+                            });
+                            document.querySelectorAll('.download-version-tag').forEach(el => {
+                                el.textContent = `(${latest.tag_name})`;
+                            });
+                        }
+                    }
+                })
+                .catch(() => {
+                    // Fallback to pre-configured download URL
+                });
+        })();
     </script>
 </body>
 </html>
