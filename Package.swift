@@ -4,7 +4,8 @@ import PackageDescription
 let package = Package(
     name: "ClipGum",
     platforms: [
-        .macOS(.v14)
+        .macOS(.v14),
+        .iOS(.v17)
     ],
     products: [
         .executable(name: "ClipGum", targets: ["ClipGum"]),
@@ -22,7 +23,12 @@ let package = Package(
             revision: "018619bf56f92cc85286150611609f456813826f"
         ),
         .package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.10.0"),
-        .package(url: "https://github.com/apple/swift-argument-parser", exact: "1.5.0")
+        .package(url: "https://github.com/apple/swift-argument-parser", exact: "1.5.0"),
+        // Pure Swift RFC 9106 Argon2id for explicit local backup exports only.
+        .package(
+            url: "https://github.com/colt3k/argon2-swift",
+            revision: "bcf667c8ee59ad6014bdac1474b5e717a0b95844"
+        )
     ],
     targets: [
         .executableTarget(
@@ -47,8 +53,14 @@ let package = Package(
         ),
         .target(
             name: "ClipGumCore",
+            dependencies: [
+                .product(name: "Argon2", package: "argon2-swift")
+            ],
             path: "Sources/ClipGumCore",
-            linkerSettings: [.linkedFramework("JavaScriptCore")]
+            linkerSettings: [
+                .linkedFramework("JavaScriptCore"),
+                .linkedFramework("Network")
+            ]
         ),
         .executableTarget(
             name: "clipgum-cli",
