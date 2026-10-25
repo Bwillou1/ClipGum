@@ -57,11 +57,15 @@ supported text was supplied rather than fetching the URL.
 ## CoreML and thermal behavior
 
 A user may select a compiled local `.mlmodelc` file. The adapter uses CoreML
-with CPU/Neural Engine compute units, bounded input/output, and a 500 MiB model
-file-size budget. That file gate is not a measurement of arbitrary model runtime
+with CPU/Neural Engine compute units, bounded input/output, and a 500 MiB total
+model-artifact budget (including files inside a compiled model package). The
+selected security scope is retained for the model's lifetime. That file gate is
+not a measurement of arbitrary model runtime
 memory. Model input is deterministically cleaned before inference and output is
 cleaned again. Serious/critical thermal pressure or an unsupported model output
-selects the same deterministic cleaner as a fallback. No weights or prompts are
+selects the same deterministic cleaner as a fallback. The constrained adapter
+expects string features named `text` and `output`; other schemas fail to that
+fallback rather than invoking another provider. No weights or prompts are
 downloaded.
 
 ## Manual validation matrix

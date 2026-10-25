@@ -311,8 +311,9 @@ public enum LocalBackupArchive {
 
     private static func randomBytes(_ count: Int) throws -> Data {
         var data = Data(count: count)
-        let status = data.withUnsafeMutableBytes { raw in
-            SecRandomCopyBytes(kSecRandomDefault, count, raw.baseAddress)
+        let status = data.withUnsafeMutableBytes { raw -> OSStatus in
+            guard let address = raw.baseAddress else { return errSecParam }
+            return SecRandomCopyBytes(kSecRandomDefault, count, address)
         }
         guard status == errSecSuccess else { throw LocalBackupError.invalidParameters }
         return data

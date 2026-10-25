@@ -16,8 +16,9 @@ public struct P2PPairingSession {
         let key = Curve25519.KeyAgreement.PrivateKey()
         privateKey = key
         var nonce = Data(count: P2PHello.nonceBytes)
-        let status = nonce.withUnsafeMutableBytes { raw in
-            SecRandomCopyBytes(kSecRandomDefault, P2PHello.nonceBytes, raw.baseAddress)
+        let status = nonce.withUnsafeMutableBytes { raw -> OSStatus in
+            guard let address = raw.baseAddress else { return errSecParam }
+            return SecRandomCopyBytes(kSecRandomDefault, P2PHello.nonceBytes, address)
         }
         guard status == errSecSuccess else { throw P2PError.invalidConfiguration }
         localHello = try P2PHello(

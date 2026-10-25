@@ -29,10 +29,18 @@ public final class CoreMLTextInference {
     private let model: MLModel
     private let inputFeature: String
     private let outputFeature: String
+    private let securityScopedURL: URL?
 
     public init(modelURL: URL, inputFeature: String = "text", outputFeature: String = "output") throws {
-        let values = try modelURL.resourceValues(forKeys: [.fileSizeKey])
-        guard let size = values.fileSize, size <= Self.maximumModelBytes else {
+        let accessed = modelURL.startAccessingSecurityScopedResource()
+        var retainScope = false
+        defer {
+            if accessed && !retainScope {
+                modelURL.stopAccessingSecurityScopedResource()
+            }
+        }
+        let size = try Self.artifactBytes(at: modelURL)
+        guard size <= Self.maximumModelBytes else {
             throw MobileInferenceError.modelTooLarge
         }
         let configuration = MLModelConfiguration()
@@ -40,6 +48,45 @@ public final class CoreMLTextInference {
         model = try MLModel(contentsOf: modelURL, configuration: configuration)
         self.inputFeature = inputFeature
         self.outputFeature = outputFeature
+        securityScopedURL = accessed ? modelURL : nil
+        retainScope = true
+    }
+
+    deinit {
+        securityScopedURL?.stopAccessingSecurityScopedResource()
+    }
+
+    private static func artifactBytes(at url: URL) throws -> Int {
+        let rootValues = try url.resourceValues(forKeys: [.isDirectoryKey, .fileSizeKey])
+        if rootValues.isDirectory != true {
+            guard let size = rootValues.fileSize, size >= 0 else {
+                throw MobileInferenceError.modelTooLarge
+            }
+            return size
+        }
+
+        guard let enumerator = FileManager.default.enumerator(
+            at: url,
+            includingPropertiesForKeys: [.isRegularFileKey, .fileSizeKey],
+            options: [.skipsHiddenFiles]
+        ) else {
+            throw MobileInferenceError.modelTooLarge
+        }
+        var total = 0
+        var entries = 0
+        for case let child as URL in enumerator {
+            entries += 1
+            guard entries <= 4_096 else { throw MobileInferenceError.modelTooLarge }
+            let values = try child.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey])
+            guard values.isRegularFile == true else { continue }
+            let size = values.fileSize ?? 0
+            let (updated, overflow) = total.addingReportingOverflow(size)
+            guard !overflow, size >= 0, updated <= maximumModelBytes else {
+                throw MobileInferenceError.modelTooLarge
+            }
+            total = updated
+        }
+        return total
     }
 
     public func transform(_ input: String) async throws -> String {

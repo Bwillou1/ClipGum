@@ -11,6 +11,17 @@ workload and checks virtual idle behavior. On a controlled host, set
 local-only transport declarations, shared-target specification, and required
 security documents.
 
+## Public design benchmarks — not timing results
+
+These references informed the implementation boundaries; no proprietary source
+was inspected and no comparative throughput/latency result is claimed.
+
+| Area | Public reference | ClipGum decision |
+| --- | --- | --- |
+| Nearby transport | [Apple `MCSession`](https://developer.apple.com/documentation/multipeerconnectivity/mcsession), [Multipeer encryption preference](https://developer.apple.com/documentation/multipeerconnectivity/mcsession/encryptionpreference), and Apple's [Network framework migration mapping](https://developer.apple.com/forums/thread/776069) | MultipeerConnectivity supplies peer/session and encryption-preference abstractions. ClipGum instead uses `NWBrowser`/`NWListener`/`NWConnection` so its bounded frames, explicit one-peer lifetime, SAS handshake, and payload AEAD remain visible in the core state machine. This is an architecture comparison, not a measured claim that one framework is faster. |
+| Handshake/channel patterns | [Noise Protocol Framework](https://noiseprotocol.org/noise.html) and [libsodium `crypto_kx`](https://libsodium.gitbook.io/doc/key_exchange) | Noise documents named X25519/ChaChaPoly/HKDF patterns; libsodium documents distinct receive/transmit keys and counter-compatible directional nonces. ClipGum adopts transcript binding, HKDF direction separation, and monotonically sequenced AEAD with CryptoKit, but its ephemeral-plus-SAS exchange is not advertised as Noise interoperable or formally audited. No libsodium code is linked. |
+| iOS Action/Share Sheet providers | [Apple Action Extension guide](https://developer.apple.com/library/archive/documentation/General/Conceptual/ExtensibilityPG/Action.html), [`NSItemProvider`](https://developer.apple.com/documentation/foundation/nsitemprovider), and [`NSExtensionContext`](https://developer.apple.com/documentation/foundation/nsextensioncontext) | The extension consumes only the host-supplied plain-text provider, displays a preview, and returns an explicit `NSExtensionItem`. It does not fetch URLs, inject JavaScript, open the containing app, or use the general pasteboard. Provider-specific physical behavior remains on the manual test matrix. |
+
 ## Manual process and device measurements
 
 Record the exact commit, Xcode/SDK, device, OS, power state, thermal state, and

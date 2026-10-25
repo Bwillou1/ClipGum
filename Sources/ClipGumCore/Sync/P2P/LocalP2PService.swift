@@ -83,7 +83,9 @@ public final class LocalP2PService {
         )
         browser.stateUpdateHandler = { [weak self] state in
             Task { @MainActor in
-                if case .failed = state { self?.onError(.connectionClosed) }
+                guard let self, case .failed = state else { return }
+                self.onError(.connectionClosed)
+                self.stop()
             }
         }
         browser.browseResultsChangedHandler = { [weak self] results, _ in
@@ -250,7 +252,9 @@ private final class P2PNetworkConnection {
             Task { @MainActor in
                 guard let self else { return }
                 switch state {
-                case .failed, .cancelled:
+                case .failed(let error):
+                    self.fail(error)
+                case .cancelled:
                     self.finish()
                 default:
                     break
@@ -317,13 +321,19 @@ private final class P2PNetworkConnection {
                         let frames = try self.accumulator.append(data)
                         wipeP2PData(&data)
                         for frame in frames {
+                            if self.didClose { break }
                             var body = frame.body
                             try self.handle(self.session.receive(P2PFrame(kind: frame.kind, body: body)))
                             wipeP2PData(&body)
                         }
                     }
+                    if self.didClose {
+                        return
+                    }
                     if isComplete {
-                        self.finish()
+                        // EOF before an authenticated close/ack is a failed
+                        // handoff, never a successfully completed delivery.
+                        self.fail(P2PError.connectionClosed)
                     } else {
                         self.receive()
                     }
@@ -339,6 +349,9 @@ private final class P2PNetworkConnection {
             scheduleTimeout(after: 60)
         }
         onOutput(output)
+        if output.events.contains(.closed) {
+            finish()
+        }
     }
 
     private func scheduleTimeout(after interval: TimeInterval = 30) {

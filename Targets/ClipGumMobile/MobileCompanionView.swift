@@ -77,8 +77,6 @@ struct MobileCompanionView: View {
                 switch result {
                 case .success(let urls):
                     guard let url = urls.first else { return }
-                    let accessing = url.startAccessingSecurityScopedResource()
-                    defer { if accessing { url.stopAccessingSecurityScopedResource() } }
                     do {
                         model = try CoreMLTextInference(modelURL: url)
                         status = "Local compiled CoreML model selected. No weights were downloaded."

@@ -35,7 +35,9 @@ final class MobileHandoffModel: ObservableObject {
             self?.status = "Received sanitized text. Copy only after reviewing it."
         }
         service.onStatusChanged = { [weak self] state in
-            guard let self, state == .closed else { return }
+            guard let self else { return }
+            if state == .idle { self.running = false }
+            guard state == .closed else { return }
             self.pendingText = nil
             self.sendStarted = false
             self.status = "The local connection ended; no payload is queued."
@@ -44,6 +46,7 @@ final class MobileHandoffModel: ObservableObject {
             guard let self else { return }
             self.pendingText = nil
             self.sendStarted = false
+            self.running = self.service.isRunning
             self.status = error.localizedDescription
         }
     }
