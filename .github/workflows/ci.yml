@@ -79,6 +79,9 @@ jobs:
           ! grep -q 'Abcd1234efgh5678' /tmp/clipgum-cli-smoke.txt
           printf '{"name":"ClipGum","count":1}\n' | "$CLI_BIN" json-to-ts --raw > /tmp/clipgum-cli-ts.txt
           grep -q 'export type Root' /tmp/clipgum-cli-ts.txt
+          printf 'token=Abcd1234efgh5678 https://example.com/?utm_source=x&id=1\n' | "$CLI_BIN" sanitize-text --raw > /tmp/clipgum-cli-sanitize.txt
+          ! grep -q 'Abcd1234efgh5678' /tmp/clipgum-cli-sanitize.txt
+          ! grep -q 'utm_source' /tmp/clipgum-cli-sanitize.txt
           python3 - <<'PY'
           import os
           import subprocess
@@ -90,10 +93,13 @@ jobs:
               input=payload, text=True, capture_output=True, check=True, timeout=45,
           )
           print(f'CLI stress output bytes: {len(result.stdout.encode())}', flush=True)
+          secret_occurrences = result.stdout.count('Abcd1234efgh5678')
+          tracking_occurrences = result.stdout.count('utm_source')
+          print(f'CLI stress surviving secret/tracking occurrences: {secret_occurrences}/{tracking_occurrences}', flush=True)
           assert len(payload.encode()) > 10 * 1024 * 1024, 'fixture did not exceed 10 MiB'
           assert result.stdout.count('\n') == payload.count('\n'), 'line count changed'
-          assert 'Abcd1234efgh5678' not in result.stdout, 'secret survived sanitization'
-          assert 'utm_source' not in result.stdout, 'tracking parameter survived sanitization'
+          assert secret_occurrences == 0, f'{secret_occurrences} secrets survived sanitization'
+          assert tracking_occurrences == 0, f'{tracking_occurrences} tracking parameters survived sanitization'
           print('CLI large-input assertions passed', flush=True)
           PY
       - name: Validate packaging script
