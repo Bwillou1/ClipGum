@@ -17,6 +17,7 @@ jobs:
         run: |
           swift package resolve
           cat Package.resolved
+          swift build --target LlamaSwift
       - name: Validate release scripts and SBOM
         shell: bash
         run: |
@@ -37,6 +38,12 @@ jobs:
             grep -E 'error:|XCTAssert|failed|Fatal error' /tmp/clipgum-swift-test.log \
               | sort -u \
               | head -n 40 \
+              | while IFS= read -r line; do
+                  line=${line//$'\r'/}
+                  line=${line//'%'/'%25'}
+                  printf '::error::%s\n' "$line"
+                done
+            tail -n 80 /tmp/clipgum-swift-test.log \
               | while IFS= read -r line; do
                   line=${line//$'\r'/}
                   line=${line//'%'/'%25'}
