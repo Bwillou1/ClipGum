@@ -60,6 +60,13 @@
         <string>https</string>
     </array>
 
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>ClipGum uses Bonjour only for an explicitly started, one-time local device handoff.</string>
+    <key>NSBonjourServices</key>
+    <array>
+        <string>_clipgum._tcp</string>
+    </array>
+
     <key>CFBundleURLTypes</key>
     <array>
         <dict>

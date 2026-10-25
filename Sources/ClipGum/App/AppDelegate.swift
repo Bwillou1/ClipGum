@@ -4,7 +4,7 @@ import Foundation
 import SwiftUI
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private let cleaner = RuleCleaningService()
     private let richTextSanitizer = RichTextSanitizer()
     private let pasteboard = SystemPasteboard()
@@ -41,6 +41,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var activeGenerationID: UUID?
     private var selectedModelIdentifier: String?
     private var modelAccess: SecurityScopedModelAccess?
+    private let p2pHandoff: P2PHandoffController
+    private var p2pWindow: NSWindow?
 
     override init() {
         let preferences = InferencePreferences()
@@ -55,12 +57,46 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         updateManager = UpdateManager()
         diagnostics = DiagnosticsEngine(telemetryLocked: policy.telemetryLocked)
         modelDownloadController = ModelDownloadController()
+        p2pHandoff = P2PHandoffController()
         pipeline = SmartPastePipeline(
             engine: engine,
             shareReadySession: shareReady,
             configuration: preferences.configuration
         )
         super.init()
+
+        p2pHandoff.copyReceivedHandler = { [weak self] text in
+            guard let self else { return false }
+            do {
+                try self.pasteService.copyResult(text)
+                return true
+            } catch {
+                return false
+            }
+        }
+        p2pHandoff.dismissHandler = { [weak self] in
+            self?.p2pWindow?.close()
+            self?.p2pWindow = nil
+        }
+        customRules.portableSettingsProvider = { [weak self] in
+            guard let self else { return PortableSettings() }
+            return PortableSettings(
+                temperature: self.inferencePreferences.temperature,
+                modelOffloadSeconds: Int((self.inferencePreferences.idleUnloadMinutes * 60).rounded()),
+                maximumOutputTokens: self.inferencePreferences.maximumOutputTokens,
+                telemetryEnabled: self.diagnostics.isEnabled
+            )
+        }
+        customRules.importSettingsHandler = { [weak self] settings in
+            guard let self else { return }
+            self.inferencePreferences.temperature = min(0.3, max(0.1, settings.temperature))
+            self.inferencePreferences.maximumOutputTokens = min(512, max(64, settings.maximumOutputTokens))
+            self.inferencePreferences.idleUnloadMinutes = min(60, max(1, Double(settings.modelOffloadSeconds) / 60))
+            self.diagnostics.applyPolicy(lockTelemetry: self.enterprisePolicy.telemetryLocked)
+            self.diagnostics.setEnabled(settings.telemetryEnabled)
+            // Model paths and mobile-only preferences are deliberately not
+            // auto-applied on macOS; no model load is triggered by an import.
+        }
 
         preferences.onChange = { configuration in
             Task {
@@ -144,6 +180,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         inferenceTask?.cancel()
         modelLoadTask?.cancel()
         modelAccess = nil
+        p2pHandoff.stop()
+        p2pWindow?.close()
+        p2pWindow = nil
         onboardingWindow?.close()
         onboardingWindow = nil
         onboardingController = nil
@@ -336,6 +375,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 paletteController.dismiss()
                 presentExecutionError(error)
             }
+        case .sendToDevice:
+            guard let preview = currentPreview, preview.canExport else { return }
+            let approvedOutput = preview.output
+            // Dismiss the HUD before focusing the handoff window. Otherwise
+            // the HUD's focus-loss dismissal can hide the newly opened window.
+            paletteController.dismiss()
+            p2pHandoff.beginSending(approvedOutput)
+            presentP2PHandoff()
         case .pasteCleaned:
             guard let preview = currentPreview, preview.canExport else {
                 return
@@ -535,6 +582,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         publish(preview)
     }
 
+    private func presentP2PHandoff() {
+        if let p2pWindow {
+            p2pWindow.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 570, height: 610),
+            styleMask: [.titled, .closable, .miniaturizable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "ClipGum Local Handoff"
+        window.contentViewController = NSHostingController(rootView: P2PHandoffView(controller: p2pHandoff))
+        window.delegate = self
+        window.isReleasedWhenClosed = false
+        window.level = .floating
+        window.center()
+        p2pWindow = window
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow, window === p2pWindow else {
+            return
+        }
+        p2pHandoff.stop()
+        p2pWindow = nil
+    }
+
     private func pasteExplicitly(_ text: String, payload: PasteboardPayload? = nil) {
         let target = targetApplication
         paletteController.dismiss()
@@ -642,6 +720,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         currentDocument = nil
         paletteModel = nil
         targetApplication = nil
+        p2pHandoff.stop()
+        p2pWindow?.close()
+        p2pWindow = nil
         paletteController.dismiss()
     }
 

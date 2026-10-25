@@ -119,6 +119,7 @@ final class NetworkIsolationTests: XCTestCase {
             "com.apple.security.app-sandbox",
             "com.apple.security.files.user-selected.read-write",
             "com.apple.security.network.client",
+            "com.apple.security.network.server",
             "com.apple.security.temporary-exception.mach-lookup.global-name"
         ])
         for key in entitlements.keys {

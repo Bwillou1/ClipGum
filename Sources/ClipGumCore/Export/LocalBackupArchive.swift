@@ -31,6 +31,7 @@ public enum LocalBackupError: LocalizedError, Equatable, Sendable {
 public struct PortableSettings: Codable, Equatable, Sendable {
     public var locale: String?
     public var modelIdentifier: String?
+    public var temperature: Double
     public var modelOffloadSeconds: Int
     public var maximumOutputTokens: Int
     public var telemetryEnabled: Bool
@@ -39,6 +40,7 @@ public struct PortableSettings: Codable, Equatable, Sendable {
     public init(
         locale: String? = nil,
         modelIdentifier: String? = nil,
+        temperature: Double = 0.2,
         modelOffloadSeconds: Int = 900,
         maximumOutputTokens: Int = 512,
         telemetryEnabled: Bool = false,
@@ -46,6 +48,7 @@ public struct PortableSettings: Codable, Equatable, Sendable {
     ) {
         self.locale = locale
         self.modelIdentifier = modelIdentifier
+        self.temperature = temperature
         self.modelOffloadSeconds = modelOffloadSeconds
         self.maximumOutputTokens = maximumOutputTokens
         self.telemetryEnabled = telemetryEnabled
@@ -55,6 +58,7 @@ public struct PortableSettings: Codable, Equatable, Sendable {
     func validate() throws {
         guard (locale?.utf8.count ?? 0) <= 64,
               (modelIdentifier?.utf8.count ?? 0) <= 256,
+              temperature.isFinite, (0.1...0.3).contains(temperature),
               (0...86_400).contains(modelOffloadSeconds),
               (1...4_096).contains(maximumOutputTokens) else {
             throw LocalBackupError.unsafeConfiguration
@@ -248,7 +252,7 @@ public enum LocalBackupArchive {
             throw LocalBackupError.unsafeConfiguration
         }
         let settingsKeys: Set<String> = [
-            "locale", "modelIdentifier", "modelOffloadSeconds", "maximumOutputTokens",
+            "locale", "modelIdentifier", "temperature", "modelOffloadSeconds", "maximumOutputTokens",
             "telemetryEnabled", "mobileKeyboardEnabled"
         ]
         guard Set(settings.keys).isSubset(of: settingsKeys) else {

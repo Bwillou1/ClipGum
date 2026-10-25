@@ -51,6 +51,10 @@ struct CustomRulesSettingsView: View {
                         Button("Export JSON") { exportPack() }
                             .disabled(model.rules.isEmpty)
                     }
+                    HStack {
+                        Button("Import .clipgum") { importBackup() }
+                        Button("Export .clipgum") { exportBackup() }
+                    }
                 }
 
                 VStack(alignment: .leading, spacing: 8) {
@@ -113,6 +117,53 @@ struct CustomRulesSettingsView: View {
         }
         .padding(18)
         .onAppear { model.policy.refresh() }
+    }
+
+    private func importBackup() {
+        let panel = NSOpenPanel()
+        panel.allowedFileTypes = [LocalBackupArchive.fileExtension]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.prompt = "Import Encrypted Backup"
+        guard panel.runModal() == .OK, let url = panel.url,
+              let password = passwordPrompt(confirm: false) else { return }
+        model.importBackup(from: url, password: password)
+    }
+
+    private func exportBackup() {
+        let panel = NSSavePanel()
+        panel.allowedFileTypes = [LocalBackupArchive.fileExtension]
+        panel.nameFieldStringValue = "ClipGumConfiguration.clipgum"
+        panel.prompt = "Export Encrypted Backup"
+        guard panel.runModal() == .OK, let url = panel.url,
+              let password = passwordPrompt(confirm: true) else { return }
+        model.exportBackup(to: url, password: password)
+    }
+
+    private func passwordPrompt(confirm: Bool) -> String? {
+        let alert = NSAlert()
+        alert.messageText = confirm ? "Protect this local backup" : "Unlock local backup"
+        alert.informativeText = confirm
+            ? "Use at least 8 UTF-8 bytes. The password is used only for this explicit export and is not saved."
+            : "The password is used only for this explicit import and is not saved."
+        alert.addButton(withTitle: confirm ? "Export" : "Import")
+        alert.addButton(withTitle: "Cancel")
+        let password = NSSecureTextField(frame: NSRect(x: 0, y: 0, width: 280, height: 24))
+        password.placeholderString = "Backup password"
+        if confirm {
+            let confirmation = NSSecureTextField(frame: NSRect(x: 0, y: 0, width: 280, height: 24))
+            confirmation.placeholderString = "Confirm password"
+            let stack = NSStackView(views: [password, confirmation])
+            stack.orientation = .vertical
+            stack.spacing = 8
+            alert.accessoryView = stack
+            guard alert.runModal() == .alertFirstButtonReturn,
+                  password.stringValue == confirmation.stringValue else { return nil }
+        } else {
+            alert.accessoryView = password
+            guard alert.runModal() == .alertFirstButtonReturn else { return nil }
+        }
+        return password.stringValue
     }
 
     private func importPack() {

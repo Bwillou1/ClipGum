@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate a CycloneDX 1.5 SBOM from SwiftPM's resolved dependency pins."""
+"""Generate a CycloneDX 1.5 SBOM from resolved pins and vendored inventory."""
 
 import argparse
 import datetime as dt
@@ -16,6 +16,7 @@ KNOWN = {
     "llama.swift": ("llama.swift", None, "018619bf56f92cc85286150611609f456813826f", "MIT", "https://github.com/mattt/llama.swift"),
     "sparkle": ("Sparkle", "2.10.0", None, "MIT", "https://github.com/sparkle-project/Sparkle"),
     "swift-argument-parser": ("Swift Argument Parser", "1.5.0", None, "Apache-2.0", "https://github.com/apple/swift-argument-parser"),
+    "argon2-swift": ("Argon2 Swift", None, "bcf667c8ee59ad6014bdac1474b5e717a0b95844", "MIT", "https://github.com/colt3k/argon2-swift"),
 }
 
 
@@ -60,6 +61,11 @@ def main():
         }
         if revision:
             component.setdefault("properties", []).append({"name": "clipgum:gitRevision", "value": revision})
+        if identity == "argon2-swift":
+            component.setdefault("properties", []).extend([
+                {"name": "clipgum:distribution", "value": "vendored source"},
+                {"name": "clipgum:provenance", "value": "Vendor/Argon2/UPSTREAM.md; Swift 6 expression-splitting compatibility patch"},
+            ])
         if identity == "sparkle":
             component["hashes"] = [{
                 "alg": "SHA-256",

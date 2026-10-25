@@ -16,6 +16,9 @@ final class CustomRulesViewModel: ObservableObject {
     @Published private(set) var isTesting = false
 
     let policy: EnterprisePolicyController
+    /// App-owned adapters keep portable preferences separate from rule storage.
+    var portableSettingsProvider: () -> PortableSettings = { PortableSettings() }
+    var importSettingsHandler: (PortableSettings) -> Void = { _ in }
     private let repository: RuleRepository
 
     init(
@@ -150,6 +153,55 @@ final class CustomRulesViewModel: ObservableObject {
         }
     }
 
+    func exportBackup(to url: URL, password: String) {
+        let accessing = url.startAccessingSecurityScopedResource()
+        defer { if accessing { url.stopAccessingSecurityScopedResource() } }
+        do {
+            let payload = ClipGumBackupPayload(rules: rules, settings: portableSettingsProvider())
+            let data = try LocalBackupArchive.export(payload: payload, password: password)
+            try data.write(to: url, options: [.atomic])
+            statusMessage = "Encrypted configuration exported. Audit confirmed no clipboard history or session mappings."
+        } catch {
+            statusMessage = safeMessage(error)
+        }
+    }
+
+    func importBackup(from url: URL, password: String) {
+        let accessing = url.startAccessingSecurityScopedResource()
+        defer { if accessing { url.stopAccessingSecurityScopedResource() } }
+        do {
+            policy.refresh()
+            let values = try url.resourceValues(forKeys: [.fileSizeKey])
+            guard let fileSize = values.fileSize,
+                  fileSize <= LocalBackupArchive.maximumArchiveBytes else {
+                throw LocalBackupError.payloadTooLarge
+            }
+            let archive = try Data(contentsOf: url)
+            let payload = try LocalBackupArchive.import(archive, password: password)
+            var merged = rules
+            for rule in payload.rules {
+                if let index = merged.firstIndex(where: { $0.id == rule.id }) {
+                    merged[index] = rule
+                } else {
+                    merged.append(rule)
+                }
+            }
+            // Disabled imported scripts stay disabled under policy. Never run
+            // imported source while decoding or applying preferences.
+            for index in merged.indices where merged[index].kind == .script && !policy.scriptsAllowed {
+                merged[index].isEnabled = false
+            }
+            try RulePackCodec.validate(rules: merged)
+            try repository.save(rules: merged)
+            rules = merged
+            importSettingsHandler(payload.settings)
+            selectedRuleID = payload.rules.first?.id ?? selectedRuleID
+            statusMessage = "Encrypted configuration verified and imported. No imported script was executed."
+        } catch {
+            statusMessage = safeMessage(error)
+        }
+    }
+
     private func update(_ rule: CustomRule, mutate: (inout CustomRule) -> Void) {
         guard let index = rules.firstIndex(where: { $0.id == rule.id }) else { return }
         var updated = rules
@@ -172,6 +224,9 @@ final class CustomRulesViewModel: ObservableObject {
             return description
         }
         if let error = error as? DeterministicTransformError, let description = error.errorDescription {
+            return description
+        }
+        if let error = error as? LocalBackupError, let description = error.errorDescription {
             return description
         }
         return "The rule operation failed safely; no content was logged."

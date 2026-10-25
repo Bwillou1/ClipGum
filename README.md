@@ -481,6 +481,27 @@ Scripts/package_app.sh                # Repeatable local .app packaging
 
 Delayed work consists of the one-shot paste focus handoff and one-shot idle offload. Neither polls the pasteboard.
 
+## Phase 7: explicit local handoff, mobile companion, and portability
+
+- **Zero-cloud handoff:** the HUD's **Send Sanitized to Device** action starts a
+  temporary Bonjour/AWDL session. Fresh X25519 keys, a mutually confirmed
+  six-digit SAS, HKDF-separated keys, and ChaCha20-Poly1305 protect one bounded
+  payload. There is no account, cloud relay, history sync, or background retry.
+  See `P2P_SECURITY.md`.
+- **iOS/iPadOS:** `Targets/ClipGumMobile/project.yml` describes the companion,
+  Share Sheet Action Extension, and optional keyboard. They share the
+  deterministic `ClipGumCore` engine; local CoreML is availability/resource
+  gated and always has a deterministic fallback. See `MOBILE.md`.
+- **Encrypted portability:** Rules settings exports a password-protected
+  `.clipgum` archive using Argon2id and AES-256-GCM. A typed allow-list and
+  export/import audit exclude clipboard history, Share-Ready mappings, and
+  session/device secrets. See `PLUGINS.md`.
+- **Regression/performance:** `Tests/Performance` and
+  `Build/validate_phase7.sh` cover protocol, mobile declarations, deterministic
+  benchmarks, virtual idle behavior, and SDK migration checks. Hardware timing,
+  physical radio, and 72-hour results are not assumed; see
+  `Build/phase7_benchmarks.md`.
+
 ## Tests and manual verification
 
 The **230 XCTest cases** cover:
@@ -539,6 +560,9 @@ References are pinned to inspected revisions. ClipGum's coordinator, validation,
 | URL query preservation | [Clipboard Cleaner `URLCleaner.swift`](https://github.com/thetoadsage/clipboard-cleaner/blob/936a4b357a6693ae7465feec1945bd4acbe25bc6/Sources/ClipboardCleanerCore/URLCleaner.swift#L128-L177) | Cross-check for deleting raw query pairs rather than serializing decoded `queryItems`. ClipGum adds embedded-URL scanning and fail-closed malformed-escape handling; no polling or automatic write was adopted. |
 | Secret-rule benchmark | [Gitleaks `gitleaks.toml`](https://github.com/gitleaks/gitleaks/blob/5f6ec56cfa6f8c67648d863582c7ae2f206d5c1c/config/gitleaks.toml#L205-L219) | Benchmarked AWS key shape and keyword-scoped generic-secret approach. ClipGum uses a smaller deterministic rule set and no entropy/network step. |
 | Marker convention | [Maccy README](https://github.com/p0deje/Maccy/blob/54fb9f00b828a4ec367e706c0e276df90febe76a/README.md#ignore-custom-copy-types), [nspasteboard.org source](https://github.com/NSPasteboard/NSPasteboard.org) | Universal concealed/transient/auto-generated markers and legacy password-manager conventions. |
+
+| Local peer transport | [Apple Network.framework `NWParameters.includePeerToPeer`](https://developer.apple.com/documentation/network/nwparameters/includepeertopeer), [WWDC19 Building Custom Networking Protocols](https://developer.apple.com/videos/play/wwdc2019/713/) | Studied Bonjour browser/listener and peer-to-peer parameter patterns. ClipGum adds its own bounded wire protocol, explicit lifetime, mutual SAS, and ephemeral payload encryption; no proprietary networking implementation was inspected. |
+| Password-based portable archives | [RFC 9106](https://www.rfc-editor.org/rfc/rfc9106.txt), [Argon2 Swift `v0.1.0`](https://github.com/colt3k/argon2-swift/tree/bcf667c8ee59ad6014bdac1474b5e717a0b95844) | Used the standardized Argon2id profile and pinned pure-Swift implementation, with bounded parameters and CryptoKit AES-GCM. Archive framing, strict schema, audits, and UI are ClipGum-specific. |
 
 **Source-availability note:** Shottr and Sindre Sorhus's Pure Paste remain product benchmarks, but no verifiable public implementation repository for them was used. Raycast extension APIs are not treated as native `NSPanel` source. DevUtils' inspected old snapshot supplied no reusable inference, URL-cleaning, or secret-scrubbing implementation. Concrete low-level choices above come from linked public code and Apple documentation.
 

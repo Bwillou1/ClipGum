@@ -27,6 +27,8 @@ jobs:
           python3 -m json.tool Build/SBOM.json >/dev/null
           python3 Build/generate_sbom.py --output /tmp/ClipGum-SBOM.json
           python3 -m json.tool /tmp/ClipGum-SBOM.json >/dev/null
+      - name: Validate Phase 7 contracts
+        run: ./Build/validate_phase7.sh
       - name: Build and smoke-test CLI
         shell: bash
         run: |

@@ -286,6 +286,16 @@ struct P2PConfirmation: Equatable {
     }
 }
 
+/// Best-effort overwrite plus release for bounded network buffers. Swift value
+/// copies are still governed by ARC; this is not a claim of zeroizing every
+/// temporary produced by CryptoKit or Foundation.
+func wipeP2PData(_ data: inout Data) {
+    data.withUnsafeMutableBytes { raw in
+        if let address = raw.baseAddress { memset(address, 0, raw.count) }
+    }
+    data.removeAll(keepingCapacity: false)
+}
+
 struct P2PSecureEnvelope: Equatable {
     let sessionID: UUID
     let sequence: UInt64

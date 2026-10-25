@@ -4,6 +4,8 @@ Sparkle 2 (sparkle-project/Sparkle), pinned to 2.10.0, provides signed appcast/u
 
 Swift Argument Parser (apple/swift-argument-parser), pinned to 1.5.0, provides the standalone CLI's UNIX command and option parsing. Its Apache-2.0 license is included separately.
 
+Argon2 Swift (colt3k/argon2-swift), pinned to commit bcf667c8ee59ad6014bdac1474b5e717a0b95844, provides the pure-Swift RFC 9106 Argon2id derivation used only for explicit local configuration backups. Its MIT license is included separately.
+
 MLX, mlx-swift, and mlx-swift-lm (ml-explore) provide Apple Silicon local inference primitives. llama.swift (mattt) and llama.cpp (ggml-org) provide the GGUF backend. Their licenses are included separately.
 
 Boop (IvanMathy/Boop) provided a production reference for stateless, supplied-text transformations. Maccy (p0deje/Maccy) provided production references for explicit pasteboard flavor handling, menu-bar behavior, and Sparkle sandbox configuration. ClipGum's marker-first capture and content-firewall policies are independently implemented; no clipboard polling or history behavior was adopted.

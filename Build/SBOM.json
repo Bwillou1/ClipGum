@@ -2,6 +2,40 @@
   "bomFormat": "CycloneDX",
   "components": [
     {
+      "bom-ref": "pkg:github/colt3k/argon2-swift@bcf667c8ee59ad6014bdac1474b5e717a0b95844",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/colt3k/argon2-swift"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "name": "Argon2 Swift",
+      "properties": [
+        {
+          "name": "clipgum:gitRevision",
+          "value": "bcf667c8ee59ad6014bdac1474b5e717a0b95844"
+        },
+        {
+          "name": "clipgum:distribution",
+          "value": "vendored source"
+        },
+        {
+          "name": "clipgum:provenance",
+          "value": "Vendor/Argon2/UPSTREAM.md; Swift 6 expression-splitting compatibility patch"
+        }
+      ],
+      "purl": "pkg:github/colt3k/argon2-swift@bcf667c8ee59ad6014bdac1474b5e717a0b95844",
+      "type": "library",
+      "version": "bcf667c8ee59ad6014bdac1474b5e717a0b95844"
+    },
+    {
       "bom-ref": "pkg:github/ggml-org/llama.cpp@b10549",
       "externalReferences": [
         {
@@ -165,6 +199,7 @@
     {
       "dependsOn": [
         "pkg:github/apple/swift-argument-parser@1.5.0",
+        "pkg:github/colt3k/argon2-swift@bcf667c8ee59ad6014bdac1474b5e717a0b95844",
         "pkg:github/mattt/llama.swift@018619bf56f92cc85286150611609f456813826f",
         "pkg:github/ml-explore/mlx-swift-lm@2.31.3",
         "pkg:github/ml-explore/mlx-swift@0.31.3",
@@ -202,7 +237,7 @@
     "properties": [
       {
         "name": "clipgum:gitRevision",
-        "value": "3652ea61ecbdc0b3a54a50c15b19b7b74181d33b"
+        "value": "b63ce5c9908d372239771706a9fb8003b240b973"
       },
       {
         "name": "clipgum:platform",
@@ -213,9 +248,9 @@
         "value": "Boop and Maccy pattern references; not linked components"
       }
     ],
-    "timestamp": "2026-10-25T11:41:17Z"
+    "timestamp": "2026-10-25T13:52:29Z"
   },
-  "serialNumber": "urn:uuid:6dde9619-3a75-570b-96c0-edb469fa679a",
+  "serialNumber": "urn:uuid:529a2fb9-7942-539d-b2c3-c70f061e471d",
   "specVersion": "1.5",
   "version": 1
 }

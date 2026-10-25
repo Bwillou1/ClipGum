@@ -67,7 +67,7 @@ final class Phase7P2PTests: XCTestCase {
         XCTAssertEqual(try accumulator.append(secondHalf), [P2PFrame(kind: .close)])
     }
 
-    func testTamperingReplayAndCloseFailClosed() throws {
+    func testTamperingAndCloseFailClosed() throws {
         var pair = try PairedSessions()
         let sent = try pair.initiator.sendSanitized("hello")
         var tampered = try XCTUnwrap(sent.outgoingFrames.first)
@@ -83,6 +83,16 @@ final class Phase7P2PTests: XCTestCase {
         XCTAssertEqual(pair.responder.state, .closed)
         XCTAssertTrue(remoteClose.events.contains(.closed))
         XCTAssertThrowsError(try pair.responder.receive(P2PFrame(kind: .close)))
+    }
+
+    func testReplayedSecureFrameIsRejected() throws {
+        var pair = try PairedSessions()
+        let sent = try pair.initiator.sendSanitized("one explicit payload")
+        let frame = try XCTUnwrap(sent.outgoingFrames.first)
+        _ = try pair.responder.receive(frame)
+        XCTAssertThrowsError(try pair.responder.receive(frame)) { error in
+            XCTAssertEqual(error as? P2PError, .replayDetected)
+        }
     }
 
     func testWrongPairingCodeCannotConfirm() throws {

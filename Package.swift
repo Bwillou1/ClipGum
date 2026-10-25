@@ -23,12 +23,7 @@ let package = Package(
             revision: "018619bf56f92cc85286150611609f456813826f"
         ),
         .package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.10.0"),
-        .package(url: "https://github.com/apple/swift-argument-parser", exact: "1.5.0"),
-        // Pure Swift RFC 9106 Argon2id for explicit local backup exports only.
-        .package(
-            url: "https://github.com/colt3k/argon2-swift",
-            revision: "bcf667c8ee59ad6014bdac1474b5e717a0b95844"
-        )
+        .package(url: "https://github.com/apple/swift-argument-parser", exact: "1.5.0")
     ],
     targets: [
         .executableTarget(
@@ -51,10 +46,16 @@ let package = Package(
                 .linkedFramework("Carbon")
             ]
         ),
+        // MIT-licensed RFC 9106 source pinned in Vendor/Argon2/UPSTREAM.md.
+        // The local target carries a documented Swift 6 type-checker fix.
+        .target(
+            name: "Argon2",
+            path: "Vendor/Argon2/Sources/Argon2"
+        ),
         .target(
             name: "ClipGumCore",
             dependencies: [
-                .product(name: "Argon2", package: "argon2-swift")
+                .target(name: "Argon2")
             ],
             path: "Sources/ClipGumCore",
             linkerSettings: [
@@ -72,8 +73,13 @@ let package = Package(
         ),
         .testTarget(
             name: "ClipGumTests",
-            dependencies: ["ClipGum", "ClipGumCore"],
+            dependencies: ["ClipGum", "ClipGumCore", "Argon2"],
             path: "Tests/ClipGumTests"
+        ),
+        .testTarget(
+            name: "ClipGumPerformanceTests",
+            dependencies: ["ClipGumCore"],
+            path: "Tests/Performance"
         )
     ]
 )

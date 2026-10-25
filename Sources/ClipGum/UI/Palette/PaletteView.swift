@@ -202,6 +202,10 @@ struct PaletteView: View {
                     onAction(.startChain)
                 }
                 .disabled(preview.isStreaming)
+                Button("Send Sanitized to Device") {
+                    onAction(.sendToDevice)
+                }
+                .disabled(!preview.canExport)
                 Spacer()
                 Button("Paste Original") {
                     onAction(.pasteOriginal)

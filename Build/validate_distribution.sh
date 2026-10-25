@@ -44,12 +44,14 @@ expected = {
     "com.apple.security.app-sandbox",
     "com.apple.security.files.user-selected.read-write",
     "com.apple.security.network.client",
+    "com.apple.security.network.server",
     "com.apple.security.temporary-exception.mach-lookup.global-name",
 }
 assert set(entitlements) == expected, f"Non-minimal main-app entitlements: {sorted(entitlements)}"
 assert entitlements["com.apple.security.app-sandbox"] is True
 assert entitlements["com.apple.security.files.user-selected.read-write"] is True
 assert entitlements["com.apple.security.network.client"] is True
+assert entitlements["com.apple.security.network.server"] is True
 assert entitlements["com.apple.security.temporary-exception.mach-lookup.global-name"] == [
     "com.clipgum.ClipGum-spks", "com.clipgum.ClipGum-spki"
 ]

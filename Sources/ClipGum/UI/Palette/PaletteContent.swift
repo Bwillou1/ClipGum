@@ -6,6 +6,7 @@ enum PaletteAction {
     case restoreDeterministic
     case pasteCleaned
     case copyResult
+    case sendToDevice
     case pasteOriginal
     case clearShareReady
     case startChain

@@ -26,6 +26,7 @@ enum LicenseCatalog {
         entry("clipgum", "ClipGum", "ClipGum", "Apache-2.0"),
         entry("sparkle", "Sparkle 2.10.0", "Sparkle", "MIT · signed appcasts and updates"),
         entry("argument-parser", "Swift Argument Parser 1.5.0", "ArgumentParser", "Apache-2.0 · UNIX CLI parsing"),
+        entry("argon2", "Argon2 Swift", "Argon2", "MIT · RFC 9106 local backup KDF"),
         entry("mlx", "MLX", "MLX", "MIT · Apple Silicon local inference"),
         entry("mlx-swift", "MLX Swift", "MLXSwift", "MIT"),
         entry("mlx-lm", "MLX Swift LM", "MLXLM", "MIT"),

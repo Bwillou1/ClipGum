@@ -118,12 +118,14 @@ public struct P2PSession {
         // This second cleaning pass is intentional: callers cannot bypass the
         // P2P boundary with an uncleared preview or an LLM-generated string.
         let cleaned = DeterministicTransforms.sanitize(text).output
-        let data = Data(cleaned.utf8)
+        var data = Data(cleaned.utf8)
+        defer { wipeP2PData(&data) }
         guard data.count <= P2PFrameCodec.maximumPayloadBytes else {
             throw P2PError.payloadTooLarge
         }
         let id = UUID()
-        let plaintext = try P2PTransferMessage(id: id, text: data).encode()
+        var plaintext = try P2PTransferMessage(id: id, text: data).encode()
+        defer { wipeP2PData(&plaintext) }
         let frame = try seal(plaintext)
         pendingTransfer = id
         return P2PSessionOutput(outgoingFrames: [frame])
@@ -155,7 +157,8 @@ public struct P2PSession {
                 throw P2PError.pairingNotReady
             }
             guard receiveSequence < UInt64.max else { throw P2PError.replayDetected }
-            let plaintext = try channel.open(frame, expectedSequence: receiveSequence)
+            var plaintext = try channel.open(frame, expectedSequence: receiveSequence)
+            defer { wipeP2PData(&plaintext) }
             receiveSequence += 1
             return try receiveSecureMessage(plaintext)
 
