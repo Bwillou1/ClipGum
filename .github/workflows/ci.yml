@@ -56,7 +56,17 @@ jobs:
         run: |
           set -euo pipefail
           exec > >(tee /tmp/clipgum-cli-step.log) 2>&1
-          trap 'status=$?; printf "::error::CLI smoke failed near line %s (exit %s).\n" "$LINENO" "$status" >&2; tail -n 50 /tmp/clipgum-cli-step.log >&2' ERR
+          report_cli_failure() {
+            local line_number="$1"
+            local status="$2"
+            printf '::error::CLI smoke failed near line %s (exit %s).\n' "$line_number" "$status" >&2
+            tail -n 50 /tmp/clipgum-cli-step.log | while IFS= read -r line; do
+              line=${line//$'\r'/}
+              line=${line//'%'/'%25'}
+              printf '::error::%s\n' "$line"
+            done
+          }
+          trap 'report_cli_failure "$LINENO" "$?"' ERR
           swift build --configuration release --product clipgum
           BIN_DIR="$(swift build --configuration release --show-bin-path)"
           CLI_BIN="$BIN_DIR/clipgum"
@@ -74,14 +84,17 @@ jobs:
           import subprocess
           line = 'token=Abcd1234efgh5678 https://example.com/?utm_source=x&id=1\n'
           payload = line * ((11 * 1024 * 1024) // len(line) + 1)
+          print(f'CLI stress input bytes: {len(payload.encode())}', flush=True)
           result = subprocess.run(
               [os.environ['CLI_BIN'], 'sanitize-text', '--raw'],
               input=payload, text=True, capture_output=True, check=True, timeout=45,
           )
-          assert len(payload.encode()) > 10 * 1024 * 1024
-          assert result.stdout.count('\n') == payload.count('\n')
-          assert 'Abcd1234efgh5678' not in result.stdout
-          assert 'utm_source' not in result.stdout
+          print(f'CLI stress output bytes: {len(result.stdout.encode())}', flush=True)
+          assert len(payload.encode()) > 10 * 1024 * 1024, 'fixture did not exceed 10 MiB'
+          assert result.stdout.count('\n') == payload.count('\n'), 'line count changed'
+          assert 'Abcd1234efgh5678' not in result.stdout, 'secret survived sanitization'
+          assert 'utm_source' not in result.stdout, 'tracking parameter survived sanitization'
+          print('CLI large-input assertions passed', flush=True)
           PY
       - name: Validate packaging script
         run: bash -n Scripts/package_app.sh
