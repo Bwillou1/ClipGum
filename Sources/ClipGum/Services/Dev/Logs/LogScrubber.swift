@@ -85,21 +85,19 @@ struct LogScrubber {
             in: input,
             range: NSRange(input.startIndex..., in: input)
         )
-        let output = NSMutableString(string: input)
-        var count = 0
-        for match in matches.reversed() {
-            let candidate = output.substring(with: match.range)
+        return MatchReplacer.apply(to: input, matches: matches) { match, source in
+            let candidate = source.substring(with: match.range)
             let octets = candidate.split(separator: ".").compactMap { Int($0) }
             guard octets.count == 4, octets.allSatisfy({ (0...255).contains($0) }),
                 octets[0] == 127 || octets[0] == 0
                     || (octets[0] == 169 && octets[1] == 254)
-            else {
-                continue
-            }
-            output.replaceCharacters(in: match.range, with: RuleCleaningService.redactionPlaceholder)
-            count += 1
+            else { return nil }
+            return MatchReplacement(
+                range: match.range,
+                text: RuleCleaningService.redactionPlaceholder,
+                changeCount: 1
+            )
         }
-        return TransformResult(output: output as String, changeCount: count)
     }
 
     private static func remove(_ expression: NSRegularExpression, from input: String) -> String {

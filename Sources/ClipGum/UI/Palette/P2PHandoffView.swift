@@ -77,7 +77,7 @@ struct P2PHandoffView: View {
                             } label: {
                                 Label(device.name, systemImage: "laptopcomputer.and.iphone")
                             }
-                            .disabled(controller.status == .ready || controller.isSending && controller.status == .connecting)
+                            .disabled(controller.status == .connecting || controller.status == .awaitingPairing || controller.status == .ready)
                         }
                         .frame(minHeight: 120, maxHeight: 190)
                     }

@@ -11,6 +11,9 @@ an installed build.
 
 The app, Action Extension, and Keyboard Extension link the root package's
 `ClipGumCore` product. The macOS AppKit/MLX product is not a mobile dependency.
+Deterministic regex rules remain available in core. The iOS profile refuses
+custom JavaScript evaluation instead of resolving macOS's private watchdog
+symbols; this does not affect the built-in deterministic cleaning actions.
 
 ## Share Sheet Action Extension
 

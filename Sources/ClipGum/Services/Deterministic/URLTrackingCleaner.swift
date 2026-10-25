@@ -33,27 +33,17 @@ struct URLTrackingCleaner {
             return TransformResult(output: input, changeCount: 0)
         }
 
-        let output = NSMutableString(string: input)
-        var totalRemoved = 0
-
-        // Reverse-order edits keep every not-yet-processed NSRange valid.
-        for match in matches.reversed() {
-            let candidate = output.substring(with: match.range)
+        return MatchReplacer.apply(to: input, matches: matches) { match, source in
+            let candidate = source.substring(with: match.range)
             let (urlPart, punctuation) = Self.separateTrailingPunctuation(from: candidate)
             let result = cleanSingleURL(urlPart)
-
-            guard result.changeCount > 0 else {
-                continue
-            }
-
-            output.replaceCharacters(
-                in: match.range,
-                with: result.output + punctuation
+            guard result.changeCount > 0 else { return nil }
+            return MatchReplacement(
+                range: match.range,
+                text: result.output + punctuation,
+                changeCount: result.changeCount
             )
-            totalRemoved += result.changeCount
         }
-
-        return TransformResult(output: output as String, changeCount: totalRemoved)
     }
 
     private func cleanSingleURL(_ input: String) -> TransformResult {

@@ -85,19 +85,11 @@ struct SecretRedactor {
             return TransformResult(output: input, changeCount: 0)
         }
 
-        let output = NSMutableString(string: input)
-        var count = 0
-
-        for match in matches.reversed() {
+        return MatchReplacer.apply(to: input, matches: matches) { match, _ in
             let range = match.range(at: captureGroup)
-            guard range.location != NSNotFound, range.length > 0 else {
-                continue
-            }
-            output.replaceCharacters(in: range, with: placeholder)
-            count += 1
+            guard range.location != NSNotFound, range.length > 0 else { return nil }
+            return MatchReplacement(range: range, text: placeholder, changeCount: 1)
         }
-
-        return TransformResult(output: output as String, changeCount: count)
     }
 
     private func replacePrivateIPv4Addresses(in input: String) -> TransformResult {
@@ -109,19 +101,15 @@ struct SecretRedactor {
             return TransformResult(output: input, changeCount: 0)
         }
 
-        let output = NSMutableString(string: input)
-        var count = 0
-
-        for match in matches.reversed() {
-            let candidate = output.substring(with: match.range)
-            guard Self.isRFC1918Private(candidate) else {
-                continue
-            }
-            output.replaceCharacters(in: match.range, with: placeholder)
-            count += 1
+        return MatchReplacer.apply(to: input, matches: matches) { match, source in
+            let candidate = source.substring(with: match.range)
+            guard Self.isRFC1918Private(candidate) else { return nil }
+            return MatchReplacement(
+                range: match.range,
+                text: placeholder,
+                changeCount: 1
+            )
         }
-
-        return TransformResult(output: output as String, changeCount: count)
     }
 
     private static func isRFC1918Private(_ candidate: String) -> Bool {

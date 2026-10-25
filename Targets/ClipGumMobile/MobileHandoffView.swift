@@ -24,7 +24,13 @@ final class MobileHandoffModel: ObservableObject {
             self?.pairingCode = $0
             self?.status = "Compare the code with the other device, then confirm on both."
         }
-        service.onReady = { [weak self] in self?.sendAfterReady() }
+        service.onReady = { [weak self] in
+            guard let self else { return }
+            if self.pendingText == nil {
+                self.status = "Authenticated local channel ready. Waiting for an explicit payload."
+            }
+            self.sendAfterReady()
+        }
         service.onDeliveryAcknowledged = { [weak self] in
             self?.pendingText = nil
             self?.sendStarted = false

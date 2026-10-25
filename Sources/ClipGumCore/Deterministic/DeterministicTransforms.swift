@@ -10,6 +10,12 @@ public struct CoreTransformResult: Equatable, Sendable {
     }
 }
 
+private struct TextReplacement {
+    let range: NSRange
+    let text: String
+    let changeCount: Int
+}
+
 public enum DeterministicTransformError: LocalizedError, Equatable, Sendable {
     case inputTooLarge
     case invalidJSON
@@ -81,17 +87,17 @@ public enum DeterministicTransforms {
             range: NSRange(input.startIndex..., in: input)
         )
         guard !matches.isEmpty else { return CoreTransformResult(output: input, changeCount: 0) }
-        let output = NSMutableString(string: input)
-        var removed = 0
-        for match in matches.reversed() {
-            let candidate = output.substring(with: match.range)
+        return applyingReplacements(to: input, matches: matches) { match, source in
+            let candidate = source.substring(with: match.range)
             let (url, punctuation) = trailingPunctuation(from: candidate)
             let result = cleanURL(url)
-            guard result.changeCount > 0 else { continue }
-            output.replaceCharacters(in: match.range, with: result.output + punctuation)
-            removed += result.changeCount
+            guard result.changeCount > 0 else { return nil }
+            return TextReplacement(
+                range: match.range,
+                text: result.output + punctuation,
+                changeCount: result.changeCount
+            )
         }
-        return CoreTransformResult(output: output as String, changeCount: removed)
     }
 
     public static func redactSecrets(in input: String) -> CoreTransformResult {
@@ -119,32 +125,57 @@ public enum DeterministicTransforms {
     ) -> CoreTransformResult {
         let matches = expression.matches(in: input, range: NSRange(input.startIndex..., in: input))
         guard !matches.isEmpty else { return CoreTransformResult(output: input, changeCount: 0) }
-        let output = NSMutableString(string: input)
-        var count = 0
-        for match in matches.reversed() {
+        return applyingReplacements(to: input, matches: matches) { match, _ in
             let range = match.range(at: group)
-            guard range.location != NSNotFound, range.length > 0 else { continue }
-            output.replaceCharacters(in: range, with: redactionPlaceholder)
-            count += 1
+            guard range.location != NSNotFound, range.length > 0 else { return nil }
+            return TextReplacement(range: range, text: redactionPlaceholder, changeCount: 1)
         }
-        return CoreTransformResult(output: output as String, changeCount: count)
     }
 
     private static func replaceIPv4(in input: String) -> CoreTransformResult {
         let matches = ipv4Expression.matches(in: input, range: NSRange(input.startIndex..., in: input))
         guard !matches.isEmpty else { return CoreTransformResult(output: input, changeCount: 0) }
-        let output = NSMutableString(string: input)
-        var count = 0
-        for match in matches.reversed() {
-            let candidate = output.substring(with: match.range)
+        return applyingReplacements(to: input, matches: matches) { match, source in
+            let candidate = source.substring(with: match.range)
             let parts = candidate.split(separator: ".", omittingEmptySubsequences: false)
             let octets = parts.compactMap { Int($0) }
             guard parts.count == 4, octets.count == 4,
-                  octets.allSatisfy({ (0...255).contains($0) }) else { continue }
-            output.replaceCharacters(in: match.range, with: redactionPlaceholder)
-            count += 1
+                  octets.allSatisfy({ (0...255).contains($0) }) else { return nil }
+            return TextReplacement(
+                range: match.range,
+                text: redactionPlaceholder,
+                changeCount: 1
+            )
         }
-        return CoreTransformResult(output: output as String, changeCount: count)
+    }
+
+    private static func applyingReplacements(
+        to input: String,
+        matches: [NSTextCheckingResult],
+        edit: (NSTextCheckingResult, NSString) -> TextReplacement?
+    ) -> CoreTransformResult {
+        let source = input as NSString
+        let output = NSMutableString()
+        var cursor = 0
+        var changeCount = 0
+        for match in matches {
+            guard let replacement = edit(match, source) else { continue }
+            let range = replacement.range
+            guard range.location != NSNotFound, range.length > 0,
+                  range.location >= cursor, NSMaxRange(range) <= source.length else { continue }
+            output.append(source.substring(with: NSRange(
+                location: cursor,
+                length: range.location - cursor
+            )))
+            output.append(replacement.text)
+            cursor = NSMaxRange(range)
+            changeCount += replacement.changeCount
+        }
+        guard changeCount > 0 else {
+            return CoreTransformResult(output: input, changeCount: 0)
+        }
+        output.append(source.substring(from: cursor))
+        return CoreTransformResult(output: output as String, changeCount: changeCount)
     }
 
     private static func cleanURL(_ input: String) -> CoreTransformResult {

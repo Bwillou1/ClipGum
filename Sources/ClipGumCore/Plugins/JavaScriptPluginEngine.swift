@@ -1,4 +1,6 @@
+#if os(macOS)
 import Darwin
+#endif
 import Foundation
 import JavaScriptCore
 
@@ -9,6 +11,7 @@ private final class JSCExecutionFlags {
     var memoryBefore: UInt64?
 }
 
+#if os(macOS)
 /// Resolves WebKit's exported context-group watchdog without making a private
 /// header part of the target. The limiter is a runtime requirement: if it is
 /// unavailable, ClipGum refuses to run user JavaScript rather than claiming a
@@ -48,6 +51,15 @@ private enum JSCWatchdog {
         return true
     }
 }
+#else
+private enum JSCWatchdog {
+    static func install(on _: JSContext, flags _: JSCExecutionFlags) -> Bool {
+        // Mobile exposes deterministic regex rules only. Do not resolve private
+        // watchdog symbols or evaluate custom JavaScript in the iOS profile.
+        false
+    }
+}
+#endif
 
 public struct JavaScriptPluginEngine {
     public static let executionBudgetMilliseconds = 250

@@ -11,6 +11,19 @@ final class Phase6CoreTests: XCTestCase {
         XCTAssertEqual(DeterministicTransforms.sanitize(result.output).output, result.output)
     }
 
+    func testSinglePassReplacementPreservesEveryUnchangedSpan() {
+        let line = "prefix token=Abcd1234efgh5678 https://example.com/?utm_source=x&id=1 suffix"
+        let input = Array(repeating: line, count: 128).joined(separator: "\n")
+        let expected = Array(
+            repeating: "prefix token=[REDACTED] https://example.com/?id=1 suffix",
+            count: 128
+        ).joined(separator: "\n")
+        let result = DeterministicTransforms.sanitize(input)
+        XCTAssertEqual(result.output, expected)
+        XCTAssertEqual(result.changeCount, 256)
+        XCTAssertEqual(DeterministicTransforms.sanitize(expected).output, expected)
+    }
+
     func testJSONToTypeScriptAndTableAreDeterministic() throws {
         let type = try DeterministicTransforms.jsonToTypeScript(#"{"name":"a","count":2,"items":[true,false]}"#)
         XCTAssertTrue(type.contains("export type Root"))
@@ -78,8 +91,8 @@ final class Phase6CoreTests: XCTestCase {
 
     func testLargeCLIStyleInputStaysBoundedAndLossless() throws {
         let line = "token=Abcd1234efgh5678 https://example.com/?utm_source=x&id=1\n"
-        var input = ""
-        while input.utf8.count < 10 * 1_024 * 1_024 { input += line }
+        let repetitions = (10 * 1_024 * 1_024) / line.utf8.count + 1
+        let input = String(repeating: line, count: repetitions)
         let result = DeterministicTransforms.sanitize(input)
         XCTAssertFalse(result.output.contains("Abcd1234efgh5678"))
         XCTAssertFalse(result.output.contains("utm_source"))

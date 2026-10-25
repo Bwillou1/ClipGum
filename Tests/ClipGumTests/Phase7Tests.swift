@@ -95,6 +95,21 @@ final class Phase7P2PTests: XCTestCase {
         }
     }
 
+    func testLowOrderX25519PeerCannotCreateChannel() throws {
+        var pairing = try P2PPairingSession(deviceName: "Mac", isInitiator: true)
+        var lowOrderKey = Data(repeating: 0, count: 32)
+        lowOrderKey[0] = 1
+        let hello = try P2PHello(
+            publicKey: lowOrderKey,
+            nonce: Data(repeating: 7, count: P2PHello.nonceBytes),
+            deviceName: "Untrusted peer"
+        )
+        _ = try pairing.receiveHello(hello)
+        XCTAssertThrowsError(try pairing.makeSecureChannel()) { error in
+            XCTAssertEqual(error as? P2PError, .authenticationFailed)
+        }
+    }
+
     func testWrongPairingCodeCannotConfirm() throws {
         var initiator = try P2PSession(deviceName: "Mac", isInitiator: true)
         var responder = try P2PSession(deviceName: "iPad", isInitiator: false)
@@ -161,6 +176,10 @@ final class Phase7BackupTests: XCTestCase {
     func testBackupAuditRejectsHistoryAndUnsafeKDFParameters() throws {
         let malicious = Data(#"{"schemaVersion":1,"rules":[],"settings":{},"clipboardHistory":["secret"]}"#.utf8)
         XCTAssertThrowsError(try LocalBackupArchive.audit(malicious)) { error in
+            XCTAssertEqual(error as? LocalBackupError, .unsafeConfiguration)
+        }
+        let missingSettings = Data(#"{"schemaVersion":1,"rules":[],"settings":{}}"#.utf8)
+        XCTAssertThrowsError(try LocalBackupArchive.audit(missingSettings)) { error in
             XCTAssertEqual(error as? LocalBackupError, .unsafeConfiguration)
         }
         let payload = ClipGumBackupPayload(rules: [])

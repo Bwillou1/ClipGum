@@ -54,6 +54,9 @@ inference_source = (root / 'Targets/ClipGumMobile/MobileInferenceEngine.swift').
 assert 'model.transform(cleanedInput)' in inference_source
 for forbidden in ['URLSession', 'CloudKit', 'Firebase']:
     assert forbidden not in inference_source
+javascript_source = (root / 'Sources/ClipGumCore/Plugins/JavaScriptPluginEngine.swift').read_text()
+assert '#if os(macOS)\nimport Darwin' in javascript_source
+assert 'Mobile exposes deterministic regex rules only' in javascript_source
 
 spec = (root / 'Targets/ClipGumMobile/project.yml').read_text()
 for target in ['ClipGumMobile:', 'ClipGumMobileAction:', 'ClipGumMobileKeyboard:']:

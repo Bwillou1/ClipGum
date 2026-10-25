@@ -76,8 +76,19 @@ public struct P2PPairingSession {
             throw P2PError.pairingNotReady
         }
         let remoteKey = try Curve25519.KeyAgreement.PublicKey(rawRepresentation: remoteHello.publicKey)
-        let shared = try privateKey.sharedSecretFromKeyAgreement(with: remoteKey)
-        let sharedData = shared.withUnsafeBytes { Data($0) }
+        let shared: SharedSecret
+        do {
+            shared = try privateKey.sharedSecretFromKeyAgreement(with: remoteKey)
+        } catch {
+            throw P2PError.authenticationFailed
+        }
+        var sharedData = shared.withUnsafeBytes { Data($0) }
+        defer { wipeP2PData(&sharedData) }
+        // X25519 low-order points can otherwise force a predictable all-zero
+        // shared secret. Never turn that value into directional channel keys.
+        guard sharedData.contains(where: { $0 != 0 }) else {
+            throw P2PError.authenticationFailed
+        }
         let sendInfo = isInitiator ? "initiator-to-responder" : "responder-to-initiator"
         let receiveInfo = isInitiator ? "responder-to-initiator" : "initiator-to-responder"
         let sendKey = Self.deriveKey(shared: sharedData, transcript: transcriptDigest, info: sendInfo)

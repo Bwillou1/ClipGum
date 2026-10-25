@@ -37,7 +37,13 @@ final class P2PHandoffController: ObservableObject {
                 self.statusMessage = "The local connection ended. No payload was retained."
             }
         }
-        service.onReady = { [weak self] in self?.sendAfterReadyIfNeeded() }
+        service.onReady = { [weak self] in
+            guard let self else { return }
+            if self.pendingText == nil {
+                self.statusMessage = "Authenticated local channel ready. Waiting for one explicit payload."
+            }
+            self.sendAfterReadyIfNeeded()
+        }
         service.onDeliveryAcknowledged = { [weak self] in
             guard let self else { return }
             self.pendingText = nil

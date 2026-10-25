@@ -218,7 +218,12 @@ public enum LocalBackupArchive {
             defer { wipe(&plaintext) }
             guard plaintext.count <= maximumPlaintextBytes else { throw LocalBackupError.payloadTooLarge }
             try audit(plaintext)
-            let payload = try JSONDecoder().decode(ClipGumBackupPayload.self, from: plaintext)
+            let payload: ClipGumBackupPayload
+            do {
+                payload = try JSONDecoder().decode(ClipGumBackupPayload.self, from: plaintext)
+            } catch {
+                throw LocalBackupError.unsafeConfiguration
+            }
             try validatePayload(payload)
             return payload
         } catch let error as LocalBackupError {
@@ -255,7 +260,12 @@ public enum LocalBackupArchive {
             "locale", "modelIdentifier", "temperature", "modelOffloadSeconds", "maximumOutputTokens",
             "telemetryEnabled", "mobileKeyboardEnabled"
         ]
-        guard Set(settings.keys).isSubset(of: settingsKeys) else {
+        let requiredSettingsKeys: Set<String> = [
+            "temperature", "modelOffloadSeconds", "maximumOutputTokens",
+            "telemetryEnabled", "mobileKeyboardEnabled"
+        ]
+        guard Set(settings.keys).isSubset(of: settingsKeys),
+              requiredSettingsKeys.isSubset(of: Set(settings.keys)) else {
             throw LocalBackupError.unsafeConfiguration
         }
         try rejectForbiddenKeys(dictionary)
