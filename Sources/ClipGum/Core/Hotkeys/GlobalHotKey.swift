@@ -15,17 +15,21 @@ enum GlobalHotKeyError: LocalizedError {
     }
 }
 
-/// Carbon-registered global shortcuts (⌘⇧V for HUD palette, ⌘⌥V for mouse radial wheel).
+/// Carbon-registered global shortcuts (⌃Z for HUD palette, ⌃X for mouse radial wheel, with ⌘⇧V/⌘⌥V fallbacks).
 final class GlobalHotKey {
     private static let signature = OSType(0x434C4755) // "CLGU"
     private static let standardHotKeyID = UInt32(1)
     private static let radialHotKeyID = UInt32(2)
+    private static let standardFallbackHotKeyID = UInt32(3)
+    private static let radialFallbackHotKeyID = UInt32(4)
 
     private let standardAction: () -> Void
     private let radialAction: () -> Void
     private var eventHandler: EventHandlerRef?
     private var standardHotKey: EventHotKeyRef?
     private var radialHotKey: EventHotKeyRef?
+    private var standardFallbackHotKey: EventHotKeyRef?
+    private var radialFallbackHotKey: EventHotKeyRef?
 
     init(
         standardAction: @escaping () -> Void,
@@ -67,14 +71,14 @@ final class GlobalHotKey {
         }
         eventHandler = handler
 
-        // 1. ⌘⇧V (Command + Shift + V) -> Standard HUD
+        // 1. ⌃Z (Control + Z) -> Standard HUD Palette
         let standardID = EventHotKeyID(
             signature: Self.signature,
             id: Self.standardHotKeyID
         )
         let standardStatus = RegisterEventHotKey(
-            UInt32(kVK_ANSI_V),
-            UInt32(cmdKey | shiftKey),
+            UInt32(kVK_ANSI_Z),
+            UInt32(controlKey),
             standardID,
             GetApplicationEventTarget(),
             0,
@@ -86,18 +90,46 @@ final class GlobalHotKey {
             throw GlobalHotKeyError.registrationFailed(standardStatus)
         }
 
-        // 2. ⌘⌥V (Command + Option + V) -> Radial Wheel around mouse
+        // 2. ⌃X (Control + X) -> Radial Wheel around mouse cursor
         let radialID = EventHotKeyID(
             signature: Self.signature,
             id: Self.radialHotKeyID
         )
         _ = RegisterEventHotKey(
-            UInt32(kVK_ANSI_V),
-            UInt32(cmdKey | optionKey),
+            UInt32(kVK_ANSI_X),
+            UInt32(controlKey),
             radialID,
             GetApplicationEventTarget(),
             0,
             &radialHotKey
+        )
+
+        // 3. Fallback: ⌘⇧V (Command + Shift + V)
+        let fallbackStandardID = EventHotKeyID(
+            signature: Self.signature,
+            id: Self.standardFallbackHotKeyID
+        )
+        _ = RegisterEventHotKey(
+            UInt32(kVK_ANSI_V),
+            UInt32(cmdKey | shiftKey),
+            fallbackStandardID,
+            GetApplicationEventTarget(),
+            0,
+            &standardFallbackHotKey
+        )
+
+        // 4. Fallback: ⌘⌥V (Command + Option + V)
+        let fallbackRadialID = EventHotKeyID(
+            signature: Self.signature,
+            id: Self.radialFallbackHotKeyID
+        )
+        _ = RegisterEventHotKey(
+            UInt32(kVK_ANSI_V),
+            UInt32(cmdKey | optionKey),
+            fallbackRadialID,
+            GetApplicationEventTarget(),
+            0,
+            &radialFallbackHotKey
         )
     }
 
@@ -113,6 +145,14 @@ final class GlobalHotKey {
         if let radialHotKey {
             UnregisterEventHotKey(radialHotKey)
             self.radialHotKey = nil
+        }
+        if let standardFallbackHotKey {
+            UnregisterEventHotKey(standardFallbackHotKey)
+            self.standardFallbackHotKey = nil
+        }
+        if let radialFallbackHotKey {
+            UnregisterEventHotKey(radialFallbackHotKey)
+            self.radialFallbackHotKey = nil
         }
         if let eventHandler {
             RemoveEventHandler(eventHandler)
@@ -138,13 +178,16 @@ final class GlobalHotKey {
             return OSStatus(eventNotHandledErr)
         }
 
-        if identifier.id == Self.radialHotKeyID {
+        if identifier.id == Self.radialHotKeyID || identifier.id == Self.radialFallbackHotKeyID {
             radialAction()
             return noErr
-        } else if identifier.id == Self.standardHotKeyID {
+        } else if identifier.id == Self.standardHotKeyID || identifier.id == Self.standardFallbackHotKeyID {
             standardAction()
             return noErr
         }
+
+        return OSStatus(eventNotHandledErr)
+    }
 
         return OSStatus(eventNotHandledErr)
     }

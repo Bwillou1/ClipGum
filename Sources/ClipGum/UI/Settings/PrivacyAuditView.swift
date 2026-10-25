@@ -12,6 +12,24 @@ struct PrivacyAuditView: View {
 
     var body: some View {
         Form {
+            Section("Automatisation & Gestion des Jetons") {
+                Toggle("Nettoyage automatique des URLs à la copie (sans confirmation)", isOn: Binding(
+                    get: { AutoSanitizerService.shared.isAutoSanitizeURLsEnabled },
+                    set: { AutoSanitizerService.shared.isAutoSanitizeURLsEnabled = $0 }
+                ))
+                Text("Purger automatiquement les traceurs marketing (utm_*, fbclid, gclid) dès qu'un lien web est copié, sans confirmation manuelle.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Toggle("Mode Développeur : Autoriser les tokens et clés API en clair", isOn: Binding(
+                    get: { AutoSanitizerService.shared.isDeveloperTokenModeEnabled },
+                    set: { AutoSanitizerService.shared.isDeveloperTokenModeEnabled = $0 }
+                ))
+                Text("Permet de copier-coller vos jetons (GitHub PAT, OpenAI, AWS) sans les écraser d'office avec [SECRET_REDACTED]. Vous pouvez utiliser ⌃X ou ⌃Z pour les masquer manuellement.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Section("Content firewall") {
                 Text("Clipboard text, transformed output, regex tokens, and Share-Ready/session mappings are never accepted by this diagnostics API. ClipGum registers no crash reporter, content logger, analytics SDK, or telemetry endpoint.")
                     .font(.callout)

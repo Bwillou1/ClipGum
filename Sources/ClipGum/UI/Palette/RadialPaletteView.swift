@@ -19,50 +19,53 @@ struct RadialPaletteView: View {
     @State private var appearanceScale: CGFloat = 0.6
     @State private var appearanceOpacity: Double = 0.0
 
-    private let items: [RadialPaletteActionItem] = [
-        RadialPaletteActionItem(
-            title: "Nettoyer & Coller",
-            subtitle: "Secrets & ⌘V",
-            icon: "sparkles",
-            color: .pink,
-            action: .pasteCleaned
-        ),
-        RadialPaletteActionItem(
-            title: "Bonsai IA",
-            subtitle: "Correction Locale",
-            icon: "cpu",
-            color: .purple,
-            action: .runTransformation(.correction)
-        ),
-        RadialPaletteActionItem(
-            title: "Tableau CSV",
-            subtitle: "Markdown / CSV",
-            icon: "tablecells",
-            color: .blue,
-            action: .runTransformation(.convertTable)
-        ),
-        RadialPaletteActionItem(
-            title: "Coller Original",
-            subtitle: "Tel quel ⌘V",
-            icon: "doc.on.clipboard",
-            color: .gray,
-            action: .pasteOriginal
-        ),
-        RadialPaletteActionItem(
-            title: "Share-Ready",
-            subtitle: "Anonymiser IDs",
-            icon: "lock.shield",
-            color: .teal,
-            action: .runTransformation(.shareReady)
-        ),
-        RadialPaletteActionItem(
-            title: "Masquer Secrets",
-            subtitle: "Purger Clés",
-            icon: "eye.slash",
-            color: .orange,
-            action: .runTransformation(.secretScrub)
-        )
-    ]
+    private var items: [RadialPaletteActionItem] {
+        let hasToken = AutoSanitizerService.shared.hasDetectedTokenInClipboard
+        return [
+            RadialPaletteActionItem(
+                title: "Nettoyer & Coller",
+                subtitle: "Secrets & ⌘V",
+                icon: "sparkles",
+                color: .pink,
+                action: .pasteCleaned
+            ),
+            RadialPaletteActionItem(
+                title: "Bonsai IA",
+                subtitle: "Correction Locale",
+                icon: "cpu",
+                color: .purple,
+                action: .runTransformation(.correction)
+            ),
+            RadialPaletteActionItem(
+                title: "Tableau CSV",
+                subtitle: "Markdown / CSV",
+                icon: "tablecells",
+                color: .blue,
+                action: .runTransformation(.convertTable)
+            ),
+            RadialPaletteActionItem(
+                title: hasToken ? "Coller Token" : "Coller Original",
+                subtitle: hasToken ? "En clair (Non masqué)" : "Tel quel ⌘V",
+                icon: hasToken ? "key.fill" : "doc.on.clipboard",
+                color: hasToken ? .yellow : .gray,
+                action: .pasteOriginal
+            ),
+            RadialPaletteActionItem(
+                title: "Share-Ready",
+                subtitle: "Anonymiser IDs",
+                icon: "lock.shield",
+                color: .teal,
+                action: .runTransformation(.shareReady)
+            ),
+            RadialPaletteActionItem(
+                title: "Masquer Secrets",
+                subtitle: "Censurer [REDACTED]",
+                icon: "eye.slash",
+                color: .orange,
+                action: .runTransformation(.secretScrub)
+            )
+        ]
+    }
 
     private let wheelRadius: CGFloat = 115
 
@@ -132,28 +135,38 @@ struct RadialPaletteView: View {
                 }
             }
 
-            // Center Hub: Eraser icon + Quick preview
-            VStack(spacing: 4) {
-                Image(systemName: "eraser.fill")
-                    .font(.system(size: 24, weight: .bold))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [.pink, .cyan],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+            // Center Hub: Eraser or Token status + Shortcut ⌃X
+            VStack(spacing: 3) {
+                if AutoSanitizerService.shared.hasDetectedTokenInClipboard {
+                    Image(systemName: "key.horizontal.fill")
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundStyle(Color.yellow)
 
-                Text("ClipGum")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(.primary)
+                    Text("Jeton Détecté")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(Color.yellow)
 
-                if let preview = model.preview {
-                    Text(preview.deterministicBaseline.cleanedText.prefix(28) + (preview.deterministicBaseline.cleanedText.count > 28 ? "…" : ""))
-                        .font(.system(size: 8))
+                    Text("En clair ou Masqué")
+                        .font(.system(size: 7, weight: .medium))
                         .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .frame(maxWidth: 70)
+                } else {
+                    Image(systemName: "eraser.fill")
+                        .font(.system(size: 22, weight: .bold))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [.pink, .cyan],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+
+                    Text("ClipGum")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(.primary)
+
+                    Text("⌃X")
+                        .font(.system(size: 8, weight: .heavy, design: .monospaced))
+                        .foregroundStyle(Color.pink)
                 }
             }
             .frame(width: 80, height: 80)

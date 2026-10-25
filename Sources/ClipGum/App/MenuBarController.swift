@@ -73,22 +73,43 @@ final class MenuBarController: NSObject {
 
         let menu = NSMenu()
         let cleanItem = NSMenuItem(
-            title: "Smart Paste… (⌘⇧V)",
+            title: "Smart Paste… (⌃Z / ⌘⇧V)",
             action: #selector(cleanMenuItemSelected),
             keyEquivalent: ""
         )
         cleanItem.target = self
-        cleanItem.toolTip = "Read the current clipboard once and show full preview HUD"
+        cleanItem.toolTip = "Lire le presse-papiers et ouvrir le panneau complet (Contrôle-Z)"
         menu.addItem(cleanItem)
 
         let radialItem = NSMenuItem(
-            title: "Mouse Radial Wheel… (⌘⌥V)",
+            title: "Roue Radiale Curseur… (⌃X / ⌘⌥V)",
             action: #selector(radialMenuItemSelected),
             keyEquivalent: ""
         )
         radialItem.target = self
-        radialItem.toolTip = "Surround mouse cursor with quick circular action wheel"
+        radialItem.toolTip = "Entourer le curseur de la souris d'une roue d'actions rapides (Contrôle-X)"
         menu.addItem(radialItem)
+        menu.addItem(.separator())
+
+        let autoCleanItem = NSMenuItem(
+            title: "⚡ Nettoyage Auto des URLs (Sans confirmation)",
+            action: #selector(toggleAutoCleanSelected),
+            keyEquivalent: ""
+        )
+        autoCleanItem.target = self
+        autoCleanItem.state = AutoSanitizerService.shared.isAutoSanitizeURLsEnabled ? .on : .off
+        autoCleanItem.toolTip = "Purger automatiquement les mouchards UTM/fbclid dès la copie d'un lien"
+        menu.addItem(autoCleanItem)
+
+        let devTokenItem = NSMenuItem(
+            title: "🔑 Autoriser les Tokens en clair (Mode Développeur)",
+            action: #selector(toggleDevTokenSelected),
+            keyEquivalent: ""
+        )
+        devTokenItem.target = self
+        devTokenItem.state = AutoSanitizerService.shared.isDeveloperTokenModeEnabled ? .on : .off
+        devTokenItem.toolTip = "Conserver vos jetons d'API (GitHub, OpenAI, AWS) intacts pour les coller"
+        menu.addItem(devTokenItem)
         menu.addItem(.separator())
 
         inferenceStatusMenuItem.isEnabled = false
@@ -196,6 +217,16 @@ final class MenuBarController: NSObject {
 
     @objc private func openInspectorSelected() {
         openInspectorAction()
+    }
+
+    @objc private func toggleAutoCleanSelected(_ sender: NSMenuItem) {
+        AutoSanitizerService.shared.isAutoSanitizeURLsEnabled.toggle()
+        sender.state = AutoSanitizerService.shared.isAutoSanitizeURLsEnabled ? .on : .off
+    }
+
+    @objc private func toggleDevTokenSelected(_ sender: NSMenuItem) {
+        AutoSanitizerService.shared.isDeveloperTokenModeEnabled.toggle()
+        sender.state = AutoSanitizerService.shared.isDeveloperTokenModeEnabled ? .on : .off
     }
 
     @objc private func quitMenuItemSelected() {

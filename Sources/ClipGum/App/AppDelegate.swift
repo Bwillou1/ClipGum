@@ -195,6 +195,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
 
         updateManager.start()
+        AutoSanitizerService.shared.start()
         presentOnboardingIfNeeded()
     }
 
@@ -203,6 +204,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        AutoSanitizerService.shared.stop()
         shareReadySession.clear()
         chainSession.clear()
         currentDocument = nil
@@ -319,7 +321,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                                    secretsCount > 0 ? "Secrets / Clés" : "Texte Brut"
 
                 LiveInspectorEngine.shared.record(
-                    trigger: radial ? "⌘⌥V Roue Radiale" : "⌘⇧V Raccourci",
+                    trigger: radial ? "⌃X Roue Radiale" : "⌃Z Raccourci",
                     contentType: detectedType,
                     original: original,
                     cleaned: cleanResult.cleanedText,
