@@ -86,7 +86,7 @@ public struct JavaScriptPluginEngine {
             "FileManager", "NSFileManager", "NSPasteboard", "pasteboard",
             "ObjC", "AppleEvents", "system", "exec", "open"
         ] {
-            context.setValue(nil, forKeyedSubscript: name as NSString)
+            context.setObject(nil, forKeyedSubscript: name as NSString)
         }
 
         flags.memoryBefore = CoreProcessMemory.residentBytes()
@@ -94,7 +94,8 @@ public struct JavaScriptPluginEngine {
         if flags.memoryExceeded { throw CustomRuleError.memoryBudgetExceeded }
         if flags.timedOut { throw CustomRuleError.executionTimedOut }
         if flags.failed || context.exception != nil { throw CustomRuleError.scriptFailed }
-        guard let main = context.objectForKeyedSubscript("main"), main.isFunction else {
+        guard let main = context.objectForKeyedSubscript("main"),
+              !main.isUndefined, !main.isNull, main.isObject else {
             throw CustomRuleError.missingMainFunction
         }
 
