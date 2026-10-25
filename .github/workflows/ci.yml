@@ -55,7 +55,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          exec > >(tee /tmp/clipgum-cli-step.log) 2>&1
+          exec > /tmp/clipgum-cli-step.log 2>&1
           report_cli_failure() {
             local line_number="$1"
             local status="$2"
