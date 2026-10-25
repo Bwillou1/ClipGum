@@ -38,7 +38,7 @@ jobs:
             local status="$2"
             printf '::error::CLI smoke failed near line %s (exit %s).\n' "$line_number" "$status" >&4
             {
-              grep -E 'CLI stress|AssertionError|CalledProcessError|TimeoutExpired|Traceback|secrets survived|line count changed|fixture did not|tracking parameters survived' /tmp/clipgum-cli-step.log || true
+              grep -E 'error:|fatal error|CLI stress|AssertionError|CalledProcessError|TimeoutExpired|Traceback|secrets survived|line count changed|fixture did not|tracking parameters survived|module' /tmp/clipgum-cli-step.log || true
             } | tail -n 12 | while IFS= read -r line; do
               line=${line//$'\r'/}
               line=${line//'%'/'%25'}
