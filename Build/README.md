@@ -13,6 +13,19 @@ Never commit signing identities' private keys, Apple credentials, app-specific p
 
 CI uses ad-hoc signatures only to verify bundle structure. It does **not** notarize, staple, or prove Gatekeeper acceptance.
 
+## CI development prerelease and Homebrew cask
+
+A maintainer can include `[dev-release]` in a push commit message to request a test prerelease. After the complete test suite passes, CI:
+
+1. Rebuilds the app as version `0.1.0-dev.<run-number>` with an ad-hoc signature.
+2. Creates a DMG, generates `clipgum.rb` with its exact SHA-256, mounts the DMG read-only, and revalidates the packaged app.
+3. Retains the DMG, cask, checksums, and notes as a seven-day workflow artifact.
+4. Publishes the same verified files as a GitHub **prerelease**, never as a stable release. Only the separate publication job receives `contents: write` permission.
+
+Install the published cask by downloading `clipgum.rb` from that prerelease and running `brew install --cask ./clipgum.rb`. The cask points to the accompanying HTTPS DMG asset; it does not require a custom tap.
+
+These packages remain development builds: no Developer ID identity, notarization, stapling, Sparkle feed, or Gatekeeper acceptance is claimed. Do not use the marker for a production release.
+
 ## Development package
 
 ```bash
