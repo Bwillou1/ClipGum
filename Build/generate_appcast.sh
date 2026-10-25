@@ -22,7 +22,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SIGN_UPDATE="${SPARKLE_SIGN_UPDATE:-}"
 if [[ -z "$SIGN_UPDATE" ]]; then
   while IFS= read -r candidate; do SIGN_UPDATE="$candidate"; break; done < <(
-    find "$ROOT/.build/artifacts" -type f -name sign_update -print 2>/dev/null | sort
+    find "$ROOT/.build/artifacts" -type f -path '*/Sparkle/bin/sign_update' -print 2>/dev/null | sort
   )
 fi
 [[ -x "$SIGN_UPDATE" ]] || { echo "Set SPARKLE_SIGN_UPDATE to Sparkle 2.10.0's sign_update" >&2; exit 2; }
