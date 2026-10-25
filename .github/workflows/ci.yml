@@ -27,43 +27,20 @@ jobs:
           python3 -m json.tool Build/SBOM.json >/dev/null
           python3 Build/generate_sbom.py --output /tmp/ClipGum-SBOM.json
           python3 -m json.tool /tmp/ClipGum-SBOM.json >/dev/null
-      - name: Run unit tests
-        shell: bash
-        run: |
-          set -o pipefail
-          set +e
-          swift test 2>&1 | tee /tmp/clipgum-swift-test.log
-          status=${PIPESTATUS[0]}
-          if [[ $status -ne 0 ]]; then
-            grep -E 'error:|XCTAssert|failed|Fatal error' /tmp/clipgum-swift-test.log \
-              | sort -u \
-              | head -n 40 \
-              | while IFS= read -r line; do
-                  line=${line//$'\r'/}
-                  line=${line//'%'/'%25'}
-                  printf '::error::%s\n' "$line"
-                done
-            tail -n 80 /tmp/clipgum-swift-test.log \
-              | while IFS= read -r line; do
-                  line=${line//$'\r'/}
-                  line=${line//'%'/'%25'}
-                  printf '::error::%s\n' "$line"
-                done
-          fi
-          exit "$status"
       - name: Build and smoke-test CLI
         shell: bash
         run: |
           set -euo pipefail
+          exec 3>&1 4>&2
           exec > /tmp/clipgum-cli-step.log 2>&1
           report_cli_failure() {
             local line_number="$1"
             local status="$2"
-            printf '::error::CLI smoke failed near line %s (exit %s).\n' "$line_number" "$status" >&2
+            printf '::error::CLI smoke failed near line %s (exit %s).\n' "$line_number" "$status" >&4
             tail -n 50 /tmp/clipgum-cli-step.log | while IFS= read -r line; do
               line=${line//$'\r'/}
               line=${line//'%'/'%25'}
-              printf '::error::%s\n' "$line"
+              printf '::error::%s\n' "$line" >&4
             done
           }
           trap 'report_cli_failure "$LINENO" "$?"' ERR
@@ -102,6 +79,30 @@ jobs:
           assert tracking_occurrences == 0, f'{tracking_occurrences} tracking parameters survived sanitization'
           print('CLI large-input assertions passed', flush=True)
           PY
+      - name: Run unit tests
+        shell: bash
+        run: |
+          set -o pipefail
+          set +e
+          swift test 2>&1 | tee /tmp/clipgum-swift-test.log
+          status=${PIPESTATUS[0]}
+          if [[ $status -ne 0 ]]; then
+            grep -E 'error:|XCTAssert|failed|Fatal error' /tmp/clipgum-swift-test.log \
+              | sort -u \
+              | head -n 40 \
+              | while IFS= read -r line; do
+                  line=${line//$'\r'/}
+                  line=${line//'%'/'%25'}
+                  printf '::error::%s\n' "$line"
+                done
+            tail -n 80 /tmp/clipgum-swift-test.log \
+              | while IFS= read -r line; do
+                  line=${line//$'\r'/}
+                  line=${line//'%'/'%25'}
+                  printf '::error::%s\n' "$line"
+                done
+          fi
+          exit "$status"
       - name: Validate packaging script
         run: bash -n Scripts/package_app.sh
       - name: Build app bundle
