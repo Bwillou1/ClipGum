@@ -69,7 +69,8 @@ jobs:
               ['.build/release/clipgum', 'sanitize-text', '--raw'],
               input=payload, text=True, capture_output=True, check=True, timeout=45,
           )
-          assert len(result.stdout) > 10 * 1024 * 1024
+          assert len(payload.encode()) > 10 * 1024 * 1024
+          assert result.stdout.count('\n') == payload.count('\n')
           assert 'Abcd1234efgh5678' not in result.stdout
           assert 'utm_source' not in result.stdout
           PY
