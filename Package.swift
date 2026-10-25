@@ -9,7 +9,7 @@ let package = Package(
     products: [
         .executable(name: "ClipGum", targets: ["ClipGum"]),
         .library(name: "ClipGumCore", targets: ["ClipGumCore"]),
-        .executable(name: "clipgum", targets: ["clipgum"])
+        .executable(name: "clipgum", targets: ["clipgum-cli"])
     ],
     dependencies: [
         // Pinned to the inspected macOS 14-compatible LM-only package layout.
@@ -51,7 +51,7 @@ let package = Package(
             linkerSettings: [.linkedFramework("JavaScriptCore")]
         ),
         .executableTarget(
-            name: "clipgum",
+            name: "clipgum-cli",
             dependencies: [
                 .target(name: "ClipGumCore"),
                 .product(name: "ArgumentParser", package: "swift-argument-parser")
