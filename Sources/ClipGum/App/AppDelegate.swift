@@ -313,8 +313,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 let preview = PalettePreview(deterministicResult: cleanResult)
                 currentPreview = preview
 
-                let secretsCount = cleanResult.matches.filter { $0.rule.category == .secret }.count
-                let trackersCount = cleanResult.matches.filter { $0.rule.category == .tracker }.count
+                let secretsCount = cleanResult.redactedSecrets
+                let trackersCount = cleanResult.removedTrackingParameters
                 let detectedType = original.hasPrefix("http://") || original.hasPrefix("https://") ? "URL Traquée" :
                                    original.contains("{") && original.contains("}") ? "JSON" :
                                    original.contains("\t") || original.contains("|") ? "Tableau" :
@@ -324,7 +324,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                     trigger: radial ? "⌃X Roue Radiale" : "⌃Z Raccourci",
                     contentType: detectedType,
                     original: original,
-                    cleaned: cleanResult.cleanedText,
+                    cleaned: cleanResult.cleaned,
                     trackersRemoved: trackersCount,
                     secretsRedacted: secretsCount,
                     latencyMs: elapsedMs,

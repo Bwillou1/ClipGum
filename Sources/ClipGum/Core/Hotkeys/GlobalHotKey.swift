@@ -189,9 +189,6 @@ final class GlobalHotKey {
         return OSStatus(eventNotHandledErr)
     }
 
-        return OSStatus(eventNotHandledErr)
-    }
-
     deinit {
         invalidate()
     }
