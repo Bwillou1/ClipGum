@@ -118,8 +118,9 @@ struct InferenceSettingsView: View {
                                 .foregroundStyle(.green)
                         } else {
                             Button {
-                                bonsaiManager.startOneClickDownload {
-                                    preferences.onLoadModel?("mlx:\(bonsaiManager.modelDirectory.path)")
+                                let modelPath = bonsaiManager.modelDirectory.path
+                                bonsaiManager.startOneClickDownload { @MainActor in
+                                    preferences.onLoadModel?("mlx:\(modelPath)")
                                 }
                             } label: {
                                 Label("Télécharger Bonsai 4B en 1-Clic", systemImage: "arrow.down.circle.fill")

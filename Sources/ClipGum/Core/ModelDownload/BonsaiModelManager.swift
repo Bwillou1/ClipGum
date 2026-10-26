@@ -54,7 +54,7 @@ public final class BonsaiModelManager: ObservableObject {
     }
 
     /// Starts 1-Click download of Bonsai 4B after user has accepted the Apache 2.0 license
-    public func startOneClickDownload(onComplete: (@Sendable () -> Void)? = nil) {
+    public func startOneClickDownload(onComplete: (@MainActor @Sendable () -> Void)? = nil) {
         guard isLicenseAccepted else {
             statusMessage = "Veuillez accepter la licence Apache 2.0 avant de télécharger."
             return
