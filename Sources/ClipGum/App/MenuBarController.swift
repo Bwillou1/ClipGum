@@ -172,18 +172,18 @@ final class MenuBarController: NSObject {
     private func menuTitle(for status: InferenceRuntimeStatus) -> String {
         switch status {
         case .idle:
-            return "Idle · No model loaded"
+            return "● IA en veille · Aucun modèle chargé"
         case .loading(let kind):
-            return "Loading \(kind.rawValue) model…"
+            return "⏳ Chargement du modèle \(kind.rawValue.uppercased())…"
         case .ready(let kind, let residentBytes):
             let memory = ProcessMemoryUsage.formatted(residentBytes)
-            return "Ready · Model Loaded · \(memory) RAM · \(kind.rawValue)"
+            return "● IA Prête (\(kind.rawValue.uppercased())) · \(memory)"
         case .generating(let kind, _):
-            return "Model Loaded · Generating locally · \(kind.rawValue)"
+            return "⚡ Inférence locale en cours (\(kind.rawValue.uppercased()))…"
         case .unloading:
-            return "Unloading model…"
+            return "Déchargement du modèle…"
         case .failed(let message):
-            return message
+            return "⚠️ \(message)"
         }
     }
 

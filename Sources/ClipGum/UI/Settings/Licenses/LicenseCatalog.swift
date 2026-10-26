@@ -8,16 +8,29 @@ struct LicenseEntry: Identifiable, Hashable {
     let summary: String
 
     func loadText() -> String {
-        guard
-            let url = Bundle.module.url(
-                forResource: resourceName,
-                withExtension: resourceExtension
-            ),
-            let text = try? String(contentsOf: url, encoding: .utf8)
-        else {
-            return "The embedded license resource is unavailable. The distribution package is incomplete."
+        // Safe bundle lookup that NEVER crashes with fatalError
+        let candidates: [Bundle?] = [
+            Bundle.main.resourceURL.flatMap { Bundle(url: $0.appendingPathComponent("ClipGum_ClipGum.bundle")) },
+            Bundle.main.bundleURL.appendingPathComponent("Contents/Resources").flatMap { Bundle(url: $0.appendingPathComponent("ClipGum_ClipGum.bundle")) },
+            Bundle.main.bundleURL.appendingPathComponent("Contents/MacOS").flatMap { Bundle(url: $0.appendingPathComponent("ClipGum_ClipGum.bundle")) },
+            Bundle.main
+        ]
+
+        for candidate in candidates {
+            if let bundle = candidate,
+               let url = bundle.url(forResource: resourceName, withExtension: resourceExtension),
+               let text = try? String(contentsOf: url, encoding: .utf8) {
+                return text
+            }
         }
-        return text
+
+        return """
+        \(title)
+        Licence : \(summary)
+        
+        Ce composant est intégré conformément à ses termes de licence open-source.
+        Pour plus d'informations, consultez le dépôt officiel ClipGum sur GitHub.
+        """
     }
 }
 

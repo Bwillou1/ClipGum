@@ -4,6 +4,8 @@ import Foundation
 
 @MainActor
 enum SystemPermissionCenter {
+    private static var hasPromptedOnce = false
+
     static func accessibilityTrusted(prompt: Bool) -> Bool {
         let key = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
         if AXIsProcessTrustedWithOptions([key: false] as CFDictionary) {
@@ -21,7 +23,8 @@ enum SystemPermissionCenter {
         if queryResult == .success || queryResult == .noValue {
             return true
         }
-        guard prompt else { return false }
+        guard prompt, !hasPromptedOnce else { return false }
+        hasPromptedOnce = true
         return AXIsProcessTrustedWithOptions([key: true] as CFDictionary)
     }
 
