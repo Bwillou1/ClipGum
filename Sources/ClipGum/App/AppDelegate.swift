@@ -767,8 +767,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     func loadDefaultModel() {
-        let defaultId = "hf:\(ModelIdentifier.defaultHuggingFaceRepo)"
-        loadModelByIdentifier(defaultId)
+        if BonsaiModelManager.shared.isDownloaded {
+            loadModelByIdentifier("mlx:\(BonsaiModelManager.shared.modelDirectory.path)")
+        } else {
+            let defaultId = "hf:\(ModelIdentifier.defaultHuggingFaceRepo)"
+            loadModelByIdentifier(defaultId)
+        }
     }
 
     func loadModelByIdentifier(_ identifier: String) {
@@ -786,8 +790,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             }
             do {
                 try await self.inferenceEngine.loadModel(identifier: identifier)
+                LiveInspectorEngine.shared.record(
+                    trigger: "Modèle IA Local",
+                    contentType: "🧠 Modèle Chargé",
+                    original: identifier,
+                    cleaned: "Modèle actif et prêt pour l'analyse d'intention",
+                    trackersRemoved: 0,
+                    secretsRedacted: 0,
+                    latencyMs: 12.0,
+                    actionName: "Chargement Modèle"
+                )
             } catch {
                 if !(error is CancellationError) {
+                    LiveInspectorEngine.shared.record(
+                        trigger: "Erreur Modèle IA",
+                        contentType: "⚠️ Échec Chargement",
+                        original: identifier,
+                        cleaned: self.userFacingMessage(for: error),
+                        trackersRemoved: 0,
+                        secretsRedacted: 0,
+                        latencyMs: 0.0,
+                        actionName: "Erreur Modèle"
+                    )
                     self.presentModelMessage(self.userFacingMessage(for: error))
                 }
             }

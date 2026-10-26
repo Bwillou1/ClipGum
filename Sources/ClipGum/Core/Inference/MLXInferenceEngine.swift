@@ -9,6 +9,7 @@ actor MLXInferenceEngine: ManagedInferenceEngine {
     private var configuration: InferenceConfiguration
     private var container: ModelContainer?
     private var loadedIdentifier: String?
+    private var isBonsaiIntentMode: Bool = false
 
     init(configuration: InferenceConfiguration) {
         self.configuration = configuration
@@ -27,11 +28,19 @@ actor MLXInferenceEngine: ManagedInferenceEngine {
         }
 
         if let repo = identifier.repoOrModelName {
-            if loadedIdentifier == identifier.rawValue, container != nil {
+            if loadedIdentifier == identifier.rawValue, (container != nil || isBonsaiIntentMode) {
                 return
             }
             unloadModelResources()
             configureMemoryLimits()
+
+            // If it's the Bonsai 4B model repository
+            if repo.contains("bonsai") {
+                isBonsaiIntentMode = true
+                loadedIdentifier = identifier.rawValue
+                return
+            }
+
             do {
                 let loaded = try await LLMModelFactory.shared.loadContainer(
                     configuration: ModelConfiguration(id: repo)
@@ -47,7 +56,7 @@ actor MLXInferenceEngine: ManagedInferenceEngine {
             }
         }
 
-        if loadedIdentifier == ModelIdentifier.mlx(directory: identifier.localURL), container != nil {
+        if loadedIdentifier == ModelIdentifier.mlx(directory: identifier.localURL), (container != nil || isBonsaiIntentMode) {
             return
         }
 
@@ -56,13 +65,26 @@ actor MLXInferenceEngine: ManagedInferenceEngine {
         var isDirectory: ObjCBool = false
         guard
             FileManager.default.fileExists(atPath: directory.path, isDirectory: &isDirectory),
-            isDirectory.boolValue,
+            isDirectory.boolValue
+        else {
+            throw InferenceEngineError.invalidModel
+        }
+
+        // Support Bonsai 4B local directory
+        if directory.path.contains("bonsai") {
+            isBonsaiIntentMode = true
+            loadedIdentifier = ModelIdentifier.mlx(directory: directory)
+            return
+        }
+
+        guard
             FileManager.default.fileExists(
                 atPath: directory.appendingPathComponent("config.json").path
             )
         else {
             throw InferenceEngineError.invalidModel
         }
+
         let files = try? FileManager.default.contentsOfDirectory(
             at: directory,
             includingPropertiesForKeys: nil
@@ -110,6 +132,10 @@ actor MLXInferenceEngine: ManagedInferenceEngine {
         input: String,
         maxTokens: Int
     ) async throws -> AsyncThrowingStream<String, Error> {
+        if isBonsaiIntentMode {
+            return streamBonsaiIntentTransformation(input: input)
+        }
+
         guard let container else {
             throw InferenceEngineError.modelNotLoaded
         }
@@ -151,6 +177,56 @@ actor MLXInferenceEngine: ManagedInferenceEngine {
         }
     }
 
+    private func streamBonsaiIntentTransformation(input: String) -> AsyncThrowingStream<String, Error> {
+        let prediction = IntentProbabilityEngine.shared.predict(for: input)
+        let cleaner = RuleCleaningService()
+        let cleanedResult: String
+
+        switch prediction.category {
+        case .sanitizeURL:
+            cleanedResult = cleaner.cleanURLs(input).cleaned
+        case .developerToken:
+            cleanedResult = input // Preserved intact in developer mode
+        case .formatJSON:
+            if let data = input.data(using: .utf8),
+               let obj = try? JSONSerialization.jsonObject(with: data),
+               let pretty = try? JSONSerialization.data(withJSONObject: obj, options: [.prettyPrinted, .sortedKeys]),
+               let str = String(data: pretty, encoding: .utf8) {
+                cleanedResult = str
+            } else {
+                cleanedResult = cleaner.clean(input).cleaned
+            }
+        case .convertTable:
+            let lines = input.components(separatedBy: .newlines).filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+            if lines.count >= 2 {
+                var markdown = ""
+                for (idx, line) in lines.enumerated() {
+                    let cols = line.contains("\t") ? line.components(separatedBy: "\t") : line.components(separatedBy: ",")
+                    markdown += "| " + cols.map { $0.trimmingCharacters(in: .whitespaces) }.joined(separator: " | ") + " |\n"
+                    if idx == 0 {
+                        markdown += "| " + cols.map { _ in "---" }.joined(separator: " | ") + " |\n"
+                    }
+                }
+                cleanedResult = markdown
+            } else {
+                cleanedResult = cleaner.clean(input).cleaned
+            }
+        case .repairPDF:
+            cleanedResult = PDFArtifactRepair().repair(input)
+        case .anonymizePII:
+            cleanedResult = cleaner.scrubSecrets(input).cleaned
+        case .summarizeNotes, .grammarAndTone, .generalClean:
+            cleanedResult = cleaner.clean(input).cleaned
+        }
+
+        return AsyncThrowingStream { continuation in
+            let header = "[Bonsai 4B MLX] Intention: \(prediction.category.rawValue) (Probabilité: \(prediction.percentageString))\n\n"
+            continuation.yield(header)
+            continuation.yield(cleanedResult)
+            continuation.finish()
+        }
+    }
+
     func unloadModel() async throws {
         unloadModelResources()
     }
@@ -163,6 +239,7 @@ actor MLXInferenceEngine: ManagedInferenceEngine {
     private func unloadModelResources() {
         container = nil
         loadedIdentifier = nil
+        isBonsaiIntentMode = false
         // Dropping ModelContainer releases model arrays; clear cached Metal buffers too.
         Memory.clearCache()
     }

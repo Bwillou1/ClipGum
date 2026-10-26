@@ -150,23 +150,21 @@ struct RadialPaletteView: View {
                         .font(.system(size: 7, weight: .medium))
                         .foregroundStyle(.secondary)
                 } else {
-                    Image(systemName: "eraser.fill")
-                        .font(.system(size: 22, weight: .bold))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [.pink, .cyan],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
+                    let text = NSPasteboard.general.string(forType: .string) ?? ""
+                    let prediction = IntentProbabilityEngine.shared.predict(for: text)
 
-                    Text("ClipGum")
-                        .font(.system(size: 10, weight: .bold))
+                    Text(prediction.percentageString)
+                        .font(.system(size: 13, weight: .black, design: .rounded))
+                        .foregroundStyle(prediction.probability > 0.85 ? Color.green : Color.pink)
+
+                    Text(prediction.category.rawValue)
+                        .font(.system(size: 7, weight: .bold))
+                        .lineLimit(1)
                         .foregroundStyle(.primary)
 
                     Text("⌃X")
                         .font(.system(size: 8, weight: .heavy, design: .monospaced))
-                        .foregroundStyle(Color.pink)
+                        .foregroundStyle(.secondary)
                 }
             }
             .frame(width: 80, height: 80)

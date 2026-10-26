@@ -93,6 +93,46 @@ struct LiveInspectorView: View {
 
             Divider()
 
+            // Current Clipboard Intent & Need Probability
+            let currentText = NSPasteboard.general.string(forType: .string) ?? ""
+            let currentIntent = IntentProbabilityEngine.shared.predict(for: currentText)
+            HStack(spacing: 12) {
+                Image(systemName: "brain.head.profile")
+                    .font(.title3)
+                    .foregroundStyle(.pink)
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text("Intention :")
+                            .font(.caption.bold())
+                        Text(currentIntent.category.rawValue)
+                            .font(.caption)
+                            .foregroundStyle(.primary)
+                        Text("•")
+                            .foregroundStyle(.secondary)
+                        Text("Probabilité du besoin :")
+                            .font(.caption.bold())
+                        Text(currentIntent.percentageString)
+                            .font(.caption.bold())
+                            .foregroundStyle(currentIntent.probability > 0.85 ? .green : .cyan)
+                    }
+                    Text(currentIntent.diagnosis)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Text("Action : \(currentIntent.suggestedActionName)")
+                    .font(.caption2)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Color.blue.opacity(0.12))
+                    .clipShape(Capsule())
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 6)
+            .background(Color.pink.opacity(0.04))
+
+            Divider()
+
             // Live event table
             if engine.filteredEntries.isEmpty {
                 VStack(spacing: 12) {
