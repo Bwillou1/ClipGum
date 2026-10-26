@@ -9,9 +9,9 @@ ENTITLEMENTS="${ENTITLEMENTS:-$ROOT/Resources/ClipGum.entitlements}"
 
 [[ -d "$APP_BUNDLE/Contents" ]] || { echo "Not an app bundle: $APP_BUNDLE" >&2; exit 2; }
 
-COMMON=(--force --sign "$IDENTITY" --options runtime)
+COMMON=(--force --sign "$IDENTITY")
 if [[ "$IDENTITY" != "-" ]]; then
-  COMMON+=(--timestamp)
+  COMMON+=(--options runtime --timestamp)
 fi
 
 sign_nested() {
